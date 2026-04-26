@@ -1,0 +1,153 @@
+.opening-selector {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.opening-selector h2 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.opening-selector > .card > p {
+  color: #7f8c8d;
+  margin-bottom: 30px;
+}
+
+.color-selector {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 40px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.color-selector label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.color-selector input[type="radio"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.openings-grid {
+  margin-bottom: 30px;
+}
+
+.openings-grid h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.openings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.opening-card {
+  padding: 15px;
+  border: 2px solid #ecf0f1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.opening-card:hover {
+  border-color: #3498db;
+  background-color: #f0f4f8;
+}
+
+.opening-card.selected {
+  border-color: #27ae60;
+  background-color: #d5f4e6;
+}
+
+.opening-code {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.opening-desc {
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.or-divider {
+  text-align: center;
+  margin: 30px 0;
+  position: relative;
+}
+
+.or-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #ecf0f1;
+}
+
+.or-divider span {
+  background-color: white;
+  padding: 0 10px;
+  position: relative;
+  color: #95a5a6;
+  font-weight: 500;
+}
+
+.custom-moves {
+  margin-bottom: 30px;
+}
+
+.custom-moves h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.custom-moves input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.opening-selector .btn-primary {
+  width: 100%;
+  padding: 14px;
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.opening-selector .btn-primary:hover:not(:disabled) {
+  background-color: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.opening-selector .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
