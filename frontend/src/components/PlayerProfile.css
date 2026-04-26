@@ -1,0 +1,136 @@
+.player-profile {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.player-profile h2 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 24px;
+}
+
+.player-profile > .card > p {
+  color: #7f8c8d;
+  margin-bottom: 30px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.openings-section,
+.first-moves-section {
+  margin-bottom: 30px;
+}
+
+.openings-section h3,
+.first-moves-section h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.openings-list {
+  list-style: none;
+  padding: 0;
+}
+
+.openings-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #ecf0f1;
+  align-items: center;
+}
+
+.opening-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.opening-count {
+  background-color: #ecf0f1;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.moves-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.move-badge {
+  background-color: #3498db;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.btn-primary,
+.btn-secondary {
+  flex: 1;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #27ae60;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.btn-secondary {
+  background-color: #ecf0f1;
+  color: #2c3e50;
+  border: 1px solid #bdc3c7;
+}
+
+.btn-secondary:hover {
+  background-color: #bdc3c7;
+}
