@@ -14,13 +14,23 @@ class PGNParser:
         """Parse PGN text and return list of games"""
         games = []
         pgn_io = StringIO(pgn_text)
+        game_count = 0
+        error_count = 0
         
         while True:
-            game = chess.pgn.read_game(pgn_io)
-            if game is None:
-                break
-            games.append(game)
+            try:
+                game = chess.pgn.read_game(pgn_io)
+                if game is None:
+                    break
+                games.append(game)
+                game_count += 1
+            except Exception as e:
+                error_count += 1
+                print(f"Error parsing game {game_count + error_count}: {e}")
+                # Skip malformed games and continue
+                continue
         
+        print(f"Successfully parsed {game_count} games with {error_count} errors")
         return games
     
     @staticmethod
@@ -36,13 +46,23 @@ class PGNParser:
         node = game
         move_count = 0
         
-        while node.variations and move_count < depth:
-            move = node.variations[0].move
-            moves.append(move.uci())
-            board.push(move)
-            positions.append(board.fen())
-            move_count += 1
-            node = node.variations[0]
+        try:
+            while node.variations and move_count < depth:
+                move = node.variations[0].move
+                
+                # Validate move is legal before pushing
+                if move not in board.legal_moves:
+                    print(f"Warning: Invalid move {move.uci()} in game, stopping parsing")
+                    break
+                
+                moves.append(move.uci())
+                board.push(move)
+                positions.append(board.fen())
+                move_count += 1
+                node = node.variations[0]
+        except Exception as e:
+            print(f"Error parsing opening moves: {e}")
+            # Continue with partial data
         
         # Extract opening from game headers
         opening = game.headers.get("Opening", "Unknown")

@@ -64,7 +64,7 @@ async def fetch_games(request: FetchGamesRequest):
     try:
         if request.source.lower() == "chess.com":
             fetcher = ChessDotComFetcher()
-            pgn_data = fetcher.get_games(request.username)
+            pgn_data = fetcher.get_games(request.username, max_archives=6)  # Fetch 6 months
         elif request.source.lower() == "lichess":
             fetcher = LichessFetcher()
             pgn_data = fetcher.get_games(request.username, max_games=50)
@@ -102,7 +102,7 @@ async def analyze_profile(request: FetchGamesRequest):
     
     if request.source.lower() == "chess.com":
         fetcher = ChessDotComFetcher()
-        pgn_data = fetcher.get_games(request.username)
+        pgn_data = fetcher.get_games(request.username, max_archives=12)  # Fetch 12 months for better profile
     elif request.source.lower() == "lichess":
         fetcher = LichessFetcher()
         pgn_data = fetcher.get_games(request.username, max_games=100)
