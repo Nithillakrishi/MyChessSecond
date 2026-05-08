@@ -55,7 +55,7 @@ class PGNParser:
                     print(f"Warning: Invalid move {move.uci()} in game, stopping parsing")
                     break
                 
-                moves.append(move.uci())
+                moves.append(board.san(move))
                 board.push(move)
                 positions.append(board.fen())
                 move_count += 1
@@ -84,7 +84,8 @@ class PGNParser:
     def get_first_move(game: chess.pgn.Game) -> Optional[str]:
         """Get the first move of a game"""
         if game.variations:
-            return game.variations[0].move.uci()
+            board = game.board()
+            return board.san(game.variations[0].move)
         return None
     
     @staticmethod

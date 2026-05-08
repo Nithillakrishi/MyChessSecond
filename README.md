@@ -1,14 +1,53 @@
 # Chess Second - Your Opening Coach 🏃♟️
 
-A smart chess opening analysis tool that uses your Chess.com or Lichess game data to help you find and master positions that suit your playing style.
+A smart chess opening analysis tool that creates **personalized opening repertoires** by matching your natural playing style with new openings to surprise opponents.
+
+## The Problem
+
+Chess players face a dilemma:
+
+- 🎯 You want to **try new openings** to surprise opponents
+- 😟 But you're afraid of leaving your **comfort zone** - positions you play well
+
+**Chess Second solves this:** Find positions where you naturally excel, then learn how to reach them through different openings.
+
+## The Solution
+
+Instead of memorizing generic opening theory, Chess Second:
+
+1. **Analyzes your games** to find positions you play exceptionally well
+2. **Asks your preferences** via an interactive questionnaire (5 questions with 2 positions each)
+3. **Gets your desired opening moves** (what you want to play first)
+4. **Creates a personalized repertoire** combining:
+   - Your chosen opening moves (to surprise opponents)
+   - Your comfortable positions (where you play best)
+   - Games from your history showing successful play in these positions
+
+### Example
+
+> You play amazing in **Kingside Fianchetto positions** (which you normally reach via `1.d4 Nf6 2.c4 g6 3.g3`), but today you want to surprise with `1.c4`.
+>
+> Chess Second navigates you through a **Reti Opening** or **English Opening** that also leads to similar Kingside Fianchetto structures - achieving both goals: surprising your opponent AND playing positions where you excel.
+
+## Current Status
+
+⚡ **Currently analyzing personal account: `NithilPY` (Chess.com)**
+
+This application is currently optimized for analyzing a single user's account and will be expanded to support multi-user comparison in future versions.
+
+**To analyze your own account**, visit: `http://localhost:3000` and enter your Chess.com or Lichess username.
 
 ## Features
 
 - **Game Import**: Connect your Chess.com or Lichess account and import your games
-- **Player Profile Analysis**: Automatically analyze your playing style, favorite openings, and win rates
-- **Opening Selection**: Choose openings by color and see positions from your own games
-- **Position Comparison**: Compare candidate positions side-by-side with Stockfish evaluations
-- **Smart Recommendations**: Get personalized suggestions based on your playing history
+- **Comfort Zone Analysis**: Automatically identify positions where you play exceptionally well
+- **Interactive Questionnaire**: Answer 5 position preference questions to rank your favorite position types
+- **Opening Preference Input**: Choose your desired opening moves (1-3 moves) to surprise opponents
+- **Personalized Repertoire**: Get opening recommendations that combine:
+  - Your preferred opening moves
+  - Your comfortable position types
+  - Winning game examples from your history
+- **Smart Navigation**: See candidate lines and positions from your actual games showing successful play
 
 ## Technology Stack
 
@@ -128,29 +167,126 @@ The frontend will be available at `http://localhost:3000`
 
 ## API Endpoints
 
-### POST `/fetch-games`
+### Profile Analysis
 
-Fetch games from a user account.
+#### POST `/analyze-profile`
 
-```json
-{
-  "source": "chess.com" | "lichess",
-  "username": "username"
-}
-```
+Analyze player's games and create player profile.
 
-### POST `/analyze-profile`
-
-Analyze player's style and preferences.
+**Request**:
 
 ```json
 {
   "source": "chess.com" | "lichess",
-  "username": "username"
+  "username": "NithilPY"
 }
 ```
 
-### POST `/get-opening-positions`
+**Response**:
+
+```json
+{
+  "total_games": 740,
+  "win_rate": 0.509,
+  "total_games_as_white": 363,
+  "total_games_as_black": 377,
+  "first_moves": {"d2d4": 447, "e2e4": 228, ...},
+  "preferred_openings": {...},
+  "eco_codes": {...}
+}
+```
+
+#### GET `/player-stats`
+
+Get the stored player profile statistics.
+
+---
+
+### Personalized Repertoire
+
+#### POST `/generate-questionnaire`
+
+Generate 5 position preference questions based on your games.
+
+**Request**:
+
+```json
+{
+  "source": "chess.com",
+  "username": "NithilPY"
+}
+```
+
+**Response**: 5 questions showing different position types and YOUR win rates:
+
+```json
+{
+  "questions": [
+    {
+      "question_id": 1,
+      "position_type_1": "Fianchetto",
+      "position_type_2": "CentralControl",
+      "description_1": "Fianchettoed bishop on long diagonal...",
+      "your_win_rate_1": "52.3%",
+      "your_win_rate_2": "48.1%"
+    }
+  ],
+  "position_types_found": 9
+}
+```
+
+#### POST `/submit-preferences`
+
+Save your position preferences and desired opening moves.
+
+**Request**:
+
+```json
+{
+  "username": "NithilPY",
+  "preferences": {
+    "Fianchetto": 5,
+    "CentralControl": 4,
+    "KingsideAttack": 4,
+    "SharpTactical": 2,
+    "ClosedPositional": 3
+  },
+  "desired_first_moves": ["c2c4", "d2d4"],
+  "color": "white"
+}
+```
+
+#### GET `/get-personalized-repertoire`
+
+Generate personalized opening lines combining your preferences and desired first moves.
+
+**Response**:
+
+```json
+{
+  "username": "NithilPY",
+  "desired_first_moves": ["c2c4", "d2d4"],
+  "preferred_position_types": [
+    "Fianchetto",
+    "CentralControl",
+    "KingsideAttack"
+  ],
+  "recommended_lines": [
+    {
+      "moves": ["c2c4", "g7g6", "g2g3", "f8g7"],
+      "opening": "English Opening / Fianchetto",
+      "position_types_reached": ["Fianchetto", "CentralControl"],
+      "outcome": "win"
+    }
+  ]
+}
+```
+
+---
+
+### Legacy Endpoints
+
+#### POST `/get-opening-positions`
 
 Get candidate positions for a specific opening.
 
@@ -161,9 +297,9 @@ Get candidate positions for a specific opening.
 }
 ```
 
-### POST `/evaluate-position`
+#### POST `/evaluate-position`
 
-Evaluate a chess position using Stockfish.
+Evaluate a chess position using Stockfish (not installed by default).
 
 ```json
 {
@@ -171,32 +307,64 @@ Evaluate a chess position using Stockfish.
 }
 ```
 
-### GET `/player-stats`
-
-Get the stored player profile statistics.
-
 ## How It Works
 
-1. **Import Games**: Connect to Chess.com or Lichess and fetch your recent games
-2. **Analyze Style**: The system analyzes your games to determine:
-   - Your favorite openings
-   - Preferred first moves
-   - Win rates by position
-   - Average rating levels
-3. **Select Opening**: Choose which color to play and which opening to study
-4. **Compare Positions**: See 10 positions (in 5 pairs) from your own games that follow the opening
-5. **Evaluate**: Stockfish evaluates each position so you can see which ones are stronger
-6. **Choose Position**: Select a position that you feel comfortable with to continue studying
+### 1. Game Analysis Phase
+
+- Import all your Chess.com/Lichess games
+- Analyze positions and calculate win rates
+- Identify "comfort zones" - positions where you consistently play well
+
+### 2. Preference Questionnaire
+
+- Answer 5 position comparison questions
+- Each question presents 2 different position types from your games
+- Rank which position structures you prefer (e.g., "Kingside Fianchetto vs Centralized Knights")
+
+### 3. Opening Move Selection
+
+- Choose which **first 1-3 moves** you want to play (to surprise opponents)
+- Specify your color preference (White or Black)
+
+### 4. Personalized Repertoire Generation
+
+The system creates a custom opening repertoire that:
+
+- **Starts with your chosen opening moves** (e.g., 1.c4 instead of 1.d4)
+- **Leads to your comfortable positions** (same position types you ranked highly)
+- **Shows your best games** as examples in these structures
+
+### 5. Study & Play
+
+- Review the recommended lines with real games from your history
+- Study successful positions from your past wins
+- Play with confidence in positions you've mastered
 
 ## Usage Example
 
-1. Open http://localhost:3000 in your browser
-2. Enter your Chess.com username (or Lichess username)
-3. View your player profile
-4. Choose to play as White or Black
-5. Select an opening (e.g., Sicilian Defense with ...c5)
-6. Compare candidate positions
-7. Select a position to continue
+### For NithilPY:
+
+1. **System analyzes NithilPY's 740 games** and finds:
+   - Comfortable positions: Kingside Fianchetto structures
+   - Strong position types: Centralized knights with space advantage
+   - Win rate: 50.95% overall
+
+2. **Questionnaire (5 questions)**:
+   - Position pair 1: "Kingside Fianchetto vs Central Control" → You prefer Fianchetto
+   - Position pair 2: "Closed Positional vs Sharp Tactical" → You prefer Closed
+   - Position pair 3: "Queenside Attack vs Kingside Attack" → You prefer Kingside
+   - Position pair 4: "Early Rooks Exchange vs Long Middlegame" → You prefer Long Middlegame
+   - Position pair 5: "Symmetrical Pawn Structure vs Asymmetrical" → You prefer Asymmetrical
+
+3. **Choose opening moves**: "I want to play `1.c4` to surprise, but reach my comfortable Fianchetto positions"
+
+4. **Personalized repertoire generated**:
+   - English Opening: 1.c4 (your surprise move)
+   - Leads to: 1.c4 g6 2.g3 (transposing to Fianchetto structures)
+   - Shows 5 of your best games reaching similar positions
+   - Evaluates recommended continuation squares
+
+5. **Study and implement**!
 
 ## Future Enhancements
 

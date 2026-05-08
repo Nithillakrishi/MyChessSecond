@@ -45,11 +45,11 @@ class ChessDotComFetcher:
                 print(f"No game archives found for {username}")
                 return None
             
-            print(f"Found {len(archives)} archives. Fetching {max_archives} most recent...")
+            print(f"Found {len(archives)} archives. Fetching... (max: {max_archives if max_archives > 0 else 'All'})")
             
-            # Fetch multiple archives (like OpeningTree does) - most recent first
+            # Fetch archives - most recent first. If max_archives is 0, fetch all.
             all_pgn = ""
-            archives_to_fetch = archives[-max_archives:]  # Get last 3 months
+            archives_to_fetch = archives if max_archives <= 0 else archives[-max_archives:]
             
             for archive_url in reversed(archives_to_fetch):  # Reverse to get chronological order
                 try:
