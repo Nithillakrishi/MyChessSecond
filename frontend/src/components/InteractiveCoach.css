@@ -1,0 +1,88 @@
+.coach-container {
+  display: flex;
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.board-section {
+  flex: 1;
+  text-align: center;
+}
+
+.sidebar-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.coach-panel, .explorer-panel {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+}
+
+.explorer-panel {
+  border-left-color: #9b59b6;
+}
+
+.record {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.win { color: #2ecc71; }
+.draw { color: #f1c40f; }
+.loss { color: #e74c3c; }
+
+.recommendations {
+  list-style: none;
+  padding: 0;
+}
+
+.recommendations li {
+  background: #e3f2fd;
+  margin-bottom: 0.5rem;
+  padding: 0.8rem;
+  border-radius: 4px;
+}
+
+.explorer-moves {
+  list-style: none;
+  padding: 0;
+}
+
+.explorer-moves li {
+  background: white;
+  padding: 0.8rem;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  transition: background 0.2s;
+}
+
+.explorer-moves li:hover {
+  background: #ecf0f1;
+}
+
+.reset-btn {
+  margin-top: 1.5rem;
+  padding: 0.8rem 1.5rem;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.reset-btn:hover {
+  background: #c0392b;
+}
