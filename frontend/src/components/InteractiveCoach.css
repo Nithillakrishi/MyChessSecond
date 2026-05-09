@@ -51,6 +51,35 @@
   font-weight: 600;
 }
 
+/* ── Stockfish hint box ── */
+.sf-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f0fff4;
+  border: 1px solid #a9dfbf;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  margin-bottom: 0.7rem;
+}
+.sf-label { font-size: 0.75rem; color: #666; }
+.sf-move-btn {
+  font-family: monospace;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #27ae60;
+  background: #e9f7ef;
+  border: 1px solid #a9dfbf;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.sf-move-btn:hover { background: #d5f0e1; }
+.sf-depth { font-size: 0.7rem; color: #aaa; margin-left: auto; }
+
+/* ── Eval bar depth label ── */
+.eval-depth { font-size: 0.62rem; color: #bbb; font-family: monospace; }
+
 .section-title {
   font-size: 0.85rem;
   font-weight: 700;
