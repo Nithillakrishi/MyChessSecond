@@ -58,62 +58,96 @@ class QuestionnaireResponse(BaseModel):
     preferences: Dict[str, int]  # position_type -> preference_score (1-5)
     desired_first_moves: Optional[List[str]] = None  # Make backwards compatible/optional
     color: str  # "white" or "black"
-async def coach_position(request: CoachPositionRequest):
-    global user_preferences, games_data
-    if not games_data or not user_preferences:
-         return {"total_games": 0, "wins": 0, "losses": 0, "draws": 0, "recommended_moves": []}
-         
-    # Track stats
-    wins = 0
-    losses = 0
-    draws = 0
-    total = 0
-    
-    # Recommendations map: Move -> style type
-    recommendations_map = {}
-    
-    username = user_preferences["username"].lower()
-    
-    seq_len = len(request.moves)
-    for game in games_data:
-        g_moves = game.get("moves", [])
-        # Check if game matches sequence
-        if len(g_moves) > seq_len and g_moves[:seq_len] == request.moves:
-            total += 1
-            is_white = game.get("white", "").lower() == username
-            result = game.get("result", "*")
-            
-            if result == "1-0":
-                 if is_white: wins += 1 
-                 else: losses += 1
-            elif result == "0-1":
-                 if is_white: losses += 1 
-                 else: wins += 1
-            else:
-                 draws += 1
-                 
-            # Find next move the player made and if it leads to favorable position
-            next_move = g_moves[seq_len]
-            positions = game.get("positions", [])
-            if len(positions) > seq_len + 3:
-                # Classify future position
-                future_pos = PositionClassifier.classify_position(positions[seq_len + 3])
-                p_type = future_pos.get("position_type")
-                if p_type in user_preferences.get("position_preferences", {}):
-                    # Higher preference weight means it's a stronger recommendation
-                    if user_preferences["position_preferences"].get(p_type, 0) > 3:
-                        if next_move not in recommendations_map:
-                             recommendations_map[next_move] = p_type
 
-    rec_list = [{"move": m, "style": s} for m, s in recommendations_map.items()]
-    
+class CoachPositionRequest(BaseModel):
+    moves: List[str]  # SAN move history from chess.js, e.g. ["e4", "e5", "Nf3"]
+
+@app.post("/coach/position")
+async def coach_position(request: CoachPositionRequest):
+    global user_preferences, games_data, position_types_map
+    import chess as chess_lib
+
+    # Reconstruct board from SAN history
+    board = chess_lib.Board()
+    for san in request.moves:
+        try:
+            board.push_san(san)
+        except Exception:
+            break
+
+    current_fen = board.fen()
+    current_type = PositionClassifier.classify_position(current_fen).get("position_type", "Mixed")
+
+    if not user_preferences:
+        return {"total_games": 0, "wins": 0, "losses": 0, "draws": 0,
+                "current_position_type": current_type, "recommended_moves": []}
+
+    position_preferences = user_preferences.get("position_preferences", {})
+
+    # Build win-rate stats per position type from the user's full game history
+    type_stats: Dict[str, Dict] = {}
+    if position_types_map:
+        for p_type, positions in position_types_map.items():
+            w = sum(1 for p in positions if p.get("outcome") == "win")
+            d = sum(1 for p in positions if p.get("outcome") == "draw")
+            l = sum(1 for p in positions if p.get("outcome") == "loss")
+            t = len(positions)
+            type_stats[p_type] = {
+                "wins": w, "draws": d, "losses": l, "total": t,
+                "win_rate": (w / t * 100) if t > 0 else 0
+            }
+
+    cur_stats = type_stats.get(current_type, {"wins": 0, "draws": 0, "losses": 0, "total": 0})
+
+    # Preferred types sorted by preference score (highest first)
+    top_preferred = [p for p, s in sorted(position_preferences.items(), key=lambda x: x[1], reverse=True) if s > 0]
+
+    # For each legal move, classify the resulting position and recommend those that
+    # steer toward a position type the user prefers and historically wins in.
+    recommendations = []
+    seen_types: set = set()
+
+    for move in list(board.legal_moves):
+        test_board = board.copy()
+        test_board.push(move)
+        future_type = PositionClassifier.classify_position(test_board.fen()).get("position_type", "Mixed")
+
+        if future_type in top_preferred and future_type not in seen_types:
+            stats = type_stats.get(future_type, {"wins": 0, "total": 0, "win_rate": 0})
+            recommendations.append({
+                "move": board.san(move),
+                "style": future_type,
+                "win_rate": f"{stats['win_rate']:.0f}%",
+                "your_wins": stats["wins"],
+                "total_games_in_type": stats["total"],
+                "preference_score": position_preferences.get(future_type, 0)
+            })
+            seen_types.add(future_type)
+
+    recommendations.sort(key=lambda x: (x["preference_score"], float(x["win_rate"].rstrip("%"))), reverse=True)
+
     return {
-        "total_games": total,
-        "wins": wins,
-        "losses": losses,
-        "draws": draws,
-        "recommended_moves": rec_list[:3] # top 3
+        "total_games": cur_stats["total"],
+        "wins": cur_stats["wins"],
+        "losses": cur_stats["losses"],
+        "draws": cur_stats["draws"],
+        "current_position_type": current_type,
+        "recommended_moves": recommendations[:3]
     }
+
+@app.get("/explorer/moves")
+async def explorer_proxy(fen: str):
+    """Proxy Lichess master explorer API to avoid browser CORS restrictions"""
+    import urllib.request
+    import urllib.parse
+
+    url = f"https://explorer.lichess.ovh/masters?fen={urllib.parse.quote(fen)}&moves=5"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "ChessSecond/1.0"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            return json.loads(resp.read().decode())
+    except Exception as e:
+        return {"moves": [], "error": str(e)}
 
 
 @app.on_event("startup")
@@ -276,7 +310,7 @@ async def test_sample():
         games = PGNParser.parse_pgn(sample_pgn)
         print(f"Parsed {len(games)} sample games")
         
-        player_profile = PlayerProfiler.analyze_player_style(games)
+        player_profile = PlayerProfiler.analyze_player_style(games, username="TestPlayer1")
         print(f"Sample profile: {player_profile}")
         
         games_data = []

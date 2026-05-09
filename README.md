@@ -395,3 +395,5 @@ For issues, questions, or suggestions, please open an issue on the repository.
 ---
 
 **Chess Second** - Master your openings with data from your games.
+
+#niggil
