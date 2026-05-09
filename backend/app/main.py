@@ -28,11 +28,15 @@ app.add_middleware(
 )
 
 # Global state
-# evaluator = None
 player_profile = None
 games_data = None
 position_types_map = None
+game_stats_by_type = None  # game-level win/draw/loss per position type
 user_preferences = None
+
+def _fen_key(fen: str) -> str:
+    """FEN comparison key ignoring half-move clock and full-move number."""
+    return " ".join(fen.strip().split()[:4])
 
 # Pydantic models
 class FetchGamesRequest(BaseModel):
@@ -64,10 +68,9 @@ class CoachPositionRequest(BaseModel):
 
 @app.post("/coach/position")
 async def coach_position(request: CoachPositionRequest):
-    global user_preferences, games_data, position_types_map
+    global user_preferences, games_data, game_stats_by_type
     import chess as chess_lib
 
-    # Reconstruct board from SAN history
     board = chess_lib.Board()
     for san in request.moves:
         try:
@@ -83,71 +86,157 @@ async def coach_position(request: CoachPositionRequest):
                 "current_position_type": current_type, "recommended_moves": []}
 
     position_preferences = user_preferences.get("position_preferences", {})
+    username = user_preferences.get("username", "").lower()
 
-    # Build win-rate stats per position type from the user's full game history
-    type_stats: Dict[str, Dict] = {}
-    if position_types_map:
-        for p_type, positions in position_types_map.items():
-            w = sum(1 for p in positions if p.get("outcome") == "win")
-            d = sum(1 for p in positions if p.get("outcome") == "draw")
-            l = sum(1 for p in positions if p.get("outcome") == "loss")
-            t = len(positions)
-            type_stats[p_type] = {
-                "wins": w, "draws": d, "losses": l, "total": t,
-                "win_rate": (w / t * 100) if t > 0 else 0
-            }
-
+    # Game-level stats per position type (computed at questionnaire time, no inflation)
+    type_stats: Dict[str, Dict] = game_stats_by_type or {}
     cur_stats = type_stats.get(current_type, {"wins": 0, "draws": 0, "losses": 0, "total": 0})
 
-    # Preferred types sorted by preference score (highest first)
+    # Preferred types sorted by preference score
     top_preferred = [p for p, s in sorted(position_preferences.items(), key=lambda x: x[1], reverse=True) if s > 0]
 
-    # For each legal move, classify the resulting position and recommend those that
-    # steer toward a position type the user prefers and historically wins in.
+    # Step 1: find moves the user actually played from this exact position in their games
+    # This gives historically grounded suggestions with real win-rate backing.
+    history_moves: Dict[str, Dict] = {}  # san -> {wins, draws, losses}
+    target_key = _fen_key(current_fen)
+    initial_key = _fen_key(chess_lib.Board().fen())
+    is_start = target_key == initial_key
+
+    if games_data:
+        for game in games_data:
+            g_moves = game.get("moves", [])
+            g_positions = game.get("positions", [])
+            result = game.get("result", "*")
+            is_white = game.get("white", "").lower() == username
+            if result == "1-0": outcome = "win" if is_white else "loss"
+            elif result == "0-1": outcome = "loss" if is_white else "win"
+            else: outcome = "draw"
+
+            next_san = None
+            if is_start and g_moves:
+                next_san = g_moves[0]
+            else:
+                for i, pfn in enumerate(g_positions):
+                    if _fen_key(pfn) == target_key and i + 1 < len(g_moves):
+                        next_san = g_moves[i + 1]
+                        break
+
+            if not next_san:
+                continue
+            if next_san not in history_moves:
+                history_moves[next_san] = {"wins": 0, "draws": 0, "losses": 0}
+            history_moves[next_san][outcome + "s"] += 1
+
+    # Step 2: for each legal move classify the resulting position type
+    move_future_type: Dict[str, str] = {}
+    for move in list(board.legal_moves):
+        tb = board.copy()
+        tb.push(move)
+        san = board.san(move)
+        move_future_type[san] = PositionClassifier.classify_position(tb.fen()).get("position_type", "Mixed")
+
+    # Build recommendations — prefer historically played moves that lead to preferred types
     recommendations = []
     seen_types: set = set()
 
-    for move in list(board.legal_moves):
-        test_board = board.copy()
-        test_board.push(move)
-        future_type = PositionClassifier.classify_position(test_board.fen()).get("position_type", "Mixed")
-
+    # Priority 1: moves from user history that lead to a preferred type
+    for san, hstats in sorted(history_moves.items(),
+                               key=lambda x: x[1]["wins"], reverse=True):
+        future_type = move_future_type.get(san, "Mixed")
         if future_type in top_preferred and future_type not in seen_types:
-            stats = type_stats.get(future_type, {"wins": 0, "total": 0, "win_rate": 0})
+            total_h = hstats["wins"] + hstats["draws"] + hstats["losses"]
+            type_s = type_stats.get(future_type, {"wins": 0, "total": 1, "win_rate": 0})
             recommendations.append({
-                "move": board.san(move),
+                "move": san,
                 "style": future_type,
-                "win_rate": f"{stats['win_rate']:.0f}%",
-                "your_wins": stats["wins"],
-                "total_games_in_type": stats["total"],
-                "preference_score": position_preferences.get(future_type, 0)
+                "win_rate": f"{type_s.get('win_rate', 0):.0f}%",
+                "your_wins": type_s.get("wins", 0),
+                "total_games_in_type": type_s.get("total", 0),
+                "preference_score": position_preferences.get(future_type, 0),
+                "times_you_played": total_h,
+                "source": "your_history"
+            })
+            seen_types.add(future_type)
+
+    # Priority 2: legal moves (not from history) that lead to a preferred type
+    for san, future_type in move_future_type.items():
+        if future_type in top_preferred and future_type not in seen_types:
+            type_s = type_stats.get(future_type, {"wins": 0, "total": 0, "win_rate": 0})
+            if type_s.get("total", 0) == 0:
+                continue  # skip if no data
+            recommendations.append({
+                "move": san,
+                "style": future_type,
+                "win_rate": f"{type_s.get('win_rate', 0):.0f}%",
+                "your_wins": type_s.get("wins", 0),
+                "total_games_in_type": type_s.get("total", 0),
+                "preference_score": position_preferences.get(future_type, 0),
+                "times_you_played": 0,
+                "source": "new_territory"
             })
             seen_types.add(future_type)
 
     recommendations.sort(key=lambda x: (x["preference_score"], float(x["win_rate"].rstrip("%"))), reverse=True)
 
     return {
-        "total_games": cur_stats["total"],
-        "wins": cur_stats["wins"],
-        "losses": cur_stats["losses"],
-        "draws": cur_stats["draws"],
+        "total_games": cur_stats.get("total", 0),
+        "wins": cur_stats.get("wins", 0),
+        "losses": cur_stats.get("losses", 0),
+        "draws": cur_stats.get("draws", 0),
         "current_position_type": current_type,
         "recommended_moves": recommendations[:3]
     }
 
 @app.get("/explorer/moves")
 async def explorer_proxy(fen: str):
-    """Proxy Lichess master explorer API to avoid browser CORS restrictions"""
-    import urllib.request
-    import urllib.parse
+    """Return moves played from this FEN position in the user's own game history."""
+    global games_data, user_preferences
+    import chess as chess_lib
 
-    url = f"https://explorer.lichess.ovh/masters?fen={urllib.parse.quote(fen)}&moves=5"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "ChessSecond/1.0"})
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            return json.loads(resp.read().decode())
-    except Exception as e:
-        return {"moves": [], "error": str(e)}
+    if not games_data:
+        return {"moves": [], "source": "no_data"}
+
+    username = (user_preferences or {}).get("username", "").lower()
+    target_key = _fen_key(fen)
+    initial_key = _fen_key(chess_lib.Board().fen())
+    is_start = target_key == initial_key
+
+    move_stats: Dict[str, Dict] = {}
+
+    for game in games_data:
+        g_moves = game.get("moves", [])
+        g_positions = game.get("positions", [])
+        result = game.get("result", "*")
+
+        next_san = None
+        if is_start and g_moves:
+            next_san = g_moves[0]
+        else:
+            for i, pfn in enumerate(g_positions):
+                if _fen_key(pfn) == target_key and i + 1 < len(g_moves):
+                    next_san = g_moves[i + 1]
+                    break
+
+        if not next_san:
+            continue
+
+        if next_san not in move_stats:
+            move_stats[next_san] = {"white": 0, "draws": 0, "black": 0}
+
+        if result == "1-0":
+            move_stats[next_san]["white"] += 1
+        elif result == "0-1":
+            move_stats[next_san]["black"] += 1
+        else:
+            move_stats[next_san]["draws"] += 1
+
+    moves_list = [
+        {"san": m, "white": s["white"], "draws": s["draws"], "black": s["black"]}
+        for m, s in move_stats.items()
+    ]
+    moves_list.sort(key=lambda x: x["white"] + x["draws"] + x["black"], reverse=True)
+
+    return {"moves": moves_list[:6], "source": "your_games"}
 
 
 @app.on_event("startup")
@@ -388,31 +477,52 @@ async def generate_questionnaire(request: FetchGamesRequest):
     Generate a position preference questionnaire based on player's games
     Returns 5 questions with contrasting position types
     """
-    global position_types_map, games_data, player_profile
-    
+    global position_types_map, game_stats_by_type, games_data, player_profile
+
     if not games_data or not player_profile:
         raise HTTPException(status_code=400, detail="Must analyze profile first")
-    
+
     try:
         print(f"Generating questionnaire for {request.username}...")
-        
-        # Classify all positions by type
+        username_lc = request.username.lower()
+
+        # Classify all positions by type (position-level map)
         position_types_map = PositionClassifier.classify_games_by_position_type(
-            games_data, 
-            request.username
+            games_data, request.username
         )
         print(f"Classified {sum(len(p) for p in position_types_map.values())} positions into {len(position_types_map)} types")
-        
+
+        # Build game-level win/draw/loss stats per position type so the coach
+        # shows accurate percentages (each game counted once per type it visits).
+        _game_stats: Dict[str, Dict] = {}
+        for game_data in games_data:
+            positions = game_data.get("positions", [])
+            result = game_data.get("result", "*")
+            is_white = game_data.get("white", "").lower() == username_lc
+            if result == "1-0":   outcome = "wins" if is_white else "losses"
+            elif result == "0-1": outcome = "losses" if is_white else "wins"
+            else:                  outcome = "draws"
+
+            types_in_game: set = set()
+            for fen in positions:
+                p_type = PositionClassifier.classify_position(fen).get("position_type", "Mixed")
+                types_in_game.add(p_type)
+
+            for p_type in types_in_game:
+                if p_type not in _game_stats:
+                    _game_stats[p_type] = {"wins": 0, "draws": 0, "losses": 0, "total": 0}
+                _game_stats[p_type]["total"] += 1
+                _game_stats[p_type][outcome] += 1
+
+        for p_type, s in _game_stats.items():
+            s["win_rate"] = (s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
+        game_stats_by_type = _game_stats
+
         # Find contrasting position pairs for questionnaire
-        position_pairs = PositionClassifier.find_best_position_pairs(
-            position_types_map,
-            num_pairs=5
-        )
-        
+        position_pairs = PositionClassifier.find_best_position_pairs(position_types_map, num_pairs=5)
         if not position_pairs:
             raise HTTPException(status_code=400, detail="Not enough position types to generate questionnaire")
-        
-        # Create questions
+
         position_descriptions = {
             "Fianchetto": "Fianchettoed bishop on long diagonal, flexible pawn structure",
             "CentralControl": "Centralized pieces with strong control of center",
@@ -424,19 +534,21 @@ async def generate_questionnaire(request: FetchGamesRequest):
             "EndgameApproaching": "Fewer pieces, simplified positions near endgame",
             "Mixed": "Combination of different strategic themes"
         }
-        
+
         questions = []
         for i, (pos_type_1, pos_type_2) in enumerate(position_pairs):
+            s1 = game_stats_by_type.get(pos_type_1, {"win_rate": 0})
+            s2 = game_stats_by_type.get(pos_type_2, {"win_rate": 0})
             questions.append({
                 "question_id": i + 1,
                 "position_type_1": pos_type_1,
                 "position_type_2": pos_type_2,
                 "description_1": position_descriptions.get(pos_type_1, f"{pos_type_1} positions"),
                 "description_2": position_descriptions.get(pos_type_2, f"{pos_type_2} positions"),
-                "your_win_rate_1": f"{len([p for p in position_types_map.get(pos_type_1, []) if p['outcome'] == 'win']) / max(1, len(position_types_map.get(pos_type_1, []))) * 100:.1f}%",
-                "your_win_rate_2": f"{len([p for p in position_types_map.get(pos_type_2, []) if p['outcome'] == 'win']) / max(1, len(position_types_map.get(pos_type_2, []))) * 100:.1f}%"
+                "your_win_rate_1": f"{s1['win_rate']:.1f}%",
+                "your_win_rate_2": f"{s2['win_rate']:.1f}%",
             })
-        
+
         return {
             "username": request.username,
             "total_games_analyzed": player_profile.get("total_games", 0),

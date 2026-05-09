@@ -209,6 +209,12 @@
   font-size: 0.9rem;
 }
 
+.explorer-hint {
+  font-size: 0.78rem;
+  color: #aaa;
+  margin: -0.4rem 0 0.6rem;
+}
+
 /* Explorer */
 .explorer-moves {
   list-style: none;

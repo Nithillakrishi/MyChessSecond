@@ -182,7 +182,10 @@ function InteractiveCoach({ username, preferences, color, onReset }) {
                       <span className="rec-detail">
                         steers to <strong>{STYLE_LABELS[rec.style] || rec.style}</strong>
                         {rec.total_games_in_type > 0
-                          ? ` · you win ${rec.win_rate} there (${rec.total_games_in_type} games)`
+                          ? ` · ${rec.win_rate} wins across ${rec.total_games_in_type} games`
+                          : ''}
+                        {rec.times_you_played > 0
+                          ? ` · you've played this ${rec.times_you_played}×`
                           : ''}
                       </span>
                     </li>
@@ -202,27 +205,30 @@ function InteractiveCoach({ username, preferences, color, onReset }) {
         </div>
 
         <div className="explorer-panel">
-          <h3>Master Explorer</h3>
+          <h3>Your Moves Here</h3>
+          <p className="explorer-hint">Moves you've played from this position</p>
           {explorerData?.moves?.length > 0 ? (
             <ul className="explorer-moves">
-              {explorerData.moves.slice(0, 5).map(m => {
+              {explorerData.moves.slice(0, 6).map(m => {
                 const total = (m.white || 0) + (m.draws || 0) + (m.black || 0);
-                const whiteWin = total > 0 ? Math.round(m.white / total * 100) : 0;
+                const winPct = total > 0 ? Math.round(m.white / total * 100) : 0;
                 return (
                   <li key={m.san} onClick={() => handleExplorerMove(m.san)} className="explorer-move">
                     <strong className="exp-san">{m.san}</strong>
-                    <span className="exp-games">{total.toLocaleString()} games</span>
+                    <span className="exp-games">{total}×</span>
                     <span className="exp-bar">
-                      <span className="exp-white" style={{ width: `${whiteWin}%` }} />
+                      <span className="exp-white" style={{ width: `${winPct}%` }} />
                     </span>
-                    <span className="exp-pct">{whiteWin}% white</span>
+                    <span className="exp-pct">{winPct}% wins</span>
                   </li>
                 );
               })}
             </ul>
           ) : (
             <p className="no-explorer">
-              {explorerData?.error ? 'Explorer unavailable' : 'No master games found here.'}
+              {explorerData === null
+                ? 'Loading...'
+                : 'You haven\'t played from this position in your game history.'}
             </p>
           )}
         </div>
