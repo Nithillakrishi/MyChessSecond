@@ -15,226 +15,293 @@ const STYLE_LABELS = {
   SharpTactical: 'Sharp & Tactical',
   LongMiddlegame: 'Long Middlegame',
   EndgameApproaching: 'Endgame',
-  Mixed: 'Mixed / Flexible',
+  Mixed: 'Mixed',
 };
 
-function InteractiveCoach({ username, preferences, color, onReset }) {
-  const [game, setGame] = useState(new Chess());
-  const [coachData, setCoachData] = useState(null);
-  const [explorerData, setExplorerData] = useState(null);
-  const [coachLoading, setCoachLoading] = useState(false);
-  const [moveHistory, setMoveHistory] = useState([]);
+const PIECE_VALUES = { p: 1, n: 3, b: 3.5, r: 5, q: 9 };
 
-  // Derive the top preferred styles from preferences prop for display
+function materialEval(g) {
+  let white = 0, black = 0;
+  g.board().forEach(row =>
+    row.forEach(piece => {
+      if (piece && piece.type !== 'k') {
+        const v = PIECE_VALUES[piece.type] || 0;
+        if (piece.color === 'w') white += v; else black += v;
+      }
+    })
+  );
+  return white - black;
+}
+
+function WinBar({ wins, draws, losses }) {
+  const total = wins + draws + losses || 1;
+  const wp = Math.round(wins / total * 100);
+  const dp = Math.round(draws / total * 100);
+  const lp = 100 - wp - dp;
+  return (
+    <div className="win-bar">
+      <div className="win-bar-w" style={{ width: `${wp}%` }} />
+      <div className="win-bar-d" style={{ width: `${dp}%` }} />
+      <div className="win-bar-l" style={{ width: `${lp}%` }} />
+    </div>
+  );
+}
+
+export default function InteractiveCoach({ username, preferences, color, onReset }) {
+  const [game, setGame] = useState(new Chess());
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [mentorData, setMentorData] = useState(null);
+  const [yourGames, setYourGames] = useState(null);
+  const [evaluation, setEvaluation] = useState(0);
+  const [mentorLoading, setMentorLoading] = useState(false);
+
   const topStyles = Object.entries(preferences || {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([k]) => STYLE_LABELS[k] || k);
 
-  const fetchCoachData = useCallback(async (history) => {
+  const isWhiteTurn = game.turn() === 'w';
+  const isUserTurn = color === 'white' ? isWhiteTurn : !isWhiteTurn;
+
+  const fetchAll = useCallback(async (g) => {
+    const history = g.history();
+    const fen = g.fen();
+    setEvaluation(materialEval(g));
+    setMentorLoading(true);
     try {
-      setCoachLoading(true);
-      const res = await axios.post(`${API_BASE}/coach/position`, { moves: history });
-      setCoachData(res.data);
+      const [mentorRes, gamesRes] = await Promise.all([
+        axios.post(`${API_BASE}/coach/lines`, { moves: history, color }),
+        axios.get(`${API_BASE}/explorer/moves`, { params: { fen } }),
+      ]);
+      setMentorData(mentorRes.data);
+      setYourGames(gamesRes.data);
     } catch (err) {
-      console.error('Coach data error', err);
+      console.error('Fetch error', err);
     } finally {
-      setCoachLoading(false);
+      setMentorLoading(false);
     }
-  }, []);
+  }, [color]);
 
-  const fetchExplorerData = useCallback(async (fen) => {
+  useEffect(() => { fetchAll(game); }, [game, fetchAll]);
+
+  const applyMove = useCallback((from, to, san) => {
+    const copy = new Chess(game.fen());
     try {
-      const res = await axios.get(`${API_BASE}/explorer/moves`, { params: { fen } });
-      setExplorerData(res.data);
-    } catch (err) {
-      console.error('Explorer error', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    const history = game.history();
-    setMoveHistory(history);
-    fetchCoachData(history);
-    fetchExplorerData(game.fen());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      const move = san ? copy.move(san) : copy.move({ from, to, promotion: 'q' });
+      if (move) { setGame(copy); setSelectedSquare(null); return true; }
+    } catch {}
+    return false;
   }, [game]);
 
-  const onDrop = (sourceSquare, targetSquare) => {
-    const copy = new Chess(game.fen());
-    try {
-      const move = copy.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
-      if (!move) return false;
-      setGame(copy);
-      return true;
-    } catch {
-      return false;
+  const handleSquareClick = useCallback((square) => {
+    const piece = game.get(square);
+    if (!selectedSquare) {
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+      return;
     }
-  };
+    if (square === selectedSquare) { setSelectedSquare(null); return; }
+    if (applyMove(selectedSquare, square)) return;
+    if (piece && piece.color === game.turn()) setSelectedSquare(square);
+    else setSelectedSquare(null);
+  }, [game, selectedSquare, applyMove]);
 
-  const handleExplorerMove = (san) => {
-    const copy = new Chess(game.fen());
-    try {
-      copy.move(san);
-      setGame(copy);
-    } catch {
-      // ignore illegal
-    }
-  };
+  const onPieceDrop = (src, tgt) => applyMove(src, tgt);
+
+  const playMove = (san) => applyMove(null, null, san);
 
   const handleUndo = () => {
     const copy = new Chess(game.fen());
     copy.undo();
     setGame(copy);
+    setSelectedSquare(null);
   };
 
-  const handleReset = () => {
+  const handleBoardReset = () => {
     setGame(new Chess());
-    setCoachData(null);
-    setExplorerData(null);
+    setSelectedSquare(null);
   };
 
-  const currentType = coachData?.current_position_type;
-  const isStrength = currentType && preferences && (preferences[currentType] || 0) >= 4;
+  // Eval bar: clamp to ±6 pawns → 0–100%
+  const evalClamped = Math.max(-6, Math.min(6, evaluation));
+  const whitePct = Math.round((evalClamped + 6) / 12 * 100);
+  const evalLabel = evaluation === 0 ? '0.0' : evaluation > 0 ? `+${evaluation.toFixed(1)}` : evaluation.toFixed(1);
+
+  const history = game.history();
+
+  const customSquareStyles = selectedSquare
+    ? { [selectedSquare]: { backgroundColor: 'rgba(255, 215, 0, 0.55)', borderRadius: '4px' } }
+    : {};
 
   return (
-    <div className="coach-container">
-      <div className="board-section">
-        <h2>Interactive Coaching Engine</h2>
-        <p className="board-hint">Make a move. The coach will steer you toward your winning middlegames.</p>
-
-        {topStyles.length > 0 && (
-          <p className="style-targets">
-            Your targets: {topStyles.map(s => <span key={s} className="style-chip">{s}</span>)}
-          </p>
-        )}
-
-        <div style={{ width: '420px', margin: '0 auto' }}>
-          <Chessboard
-            position={game.fen()}
-            onPieceDrop={onDrop}
-            boardOrientation={color || 'white'}
-            boardWidth={420}
-          />
+    <div className="coach-root">
+      {/* ── LEFT: AI Mentor ── */}
+      <div className="mentor-panel panel">
+        <div className="panel-header">
+          <span className="panel-icon">♟</span>
+          <h3>AI Chess Second</h3>
         </div>
 
-        {moveHistory.length > 0 && (
-          <div className="move-history">
-            {moveHistory.map((m, i) => (
-              <span key={i} className="move-chip">
-                {i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ` : ''}{m}
-              </span>
-            ))}
+        {topStyles.length > 0 && (
+          <div className="target-row">
+            <span className="target-label">Your targets:</span>
+            {topStyles.map(s => <span key={s} className="style-chip">{s}</span>)}
           </div>
         )}
 
-        <div className="board-actions">
-          <button className="btn-secondary" onClick={handleUndo} disabled={moveHistory.length === 0}>
-            Undo
-          </button>
-          <button className="btn-secondary" onClick={handleReset}>
-            Reset Board
-          </button>
-          <button className="btn-danger" onClick={onReset}>
-            Start Over
-          </button>
+        <div className="mentor-body">
+          {mentorLoading ? (
+            <p className="hint-text">Analyzing…</p>
+          ) : mentorData ? (
+            isUserTurn ? (
+              <>
+                <h4 className="section-title">Your best lines ({color})</h4>
+                {mentorData.lines?.length > 0 ? (
+                  <div className="lines-list">
+                    {mentorData.lines.map((line, i) => (
+                      <div key={i} className="line-card">
+                        <div className="line-moves-row">
+                          {line.moves.map((m, mi) => (
+                            <React.Fragment key={mi}>
+                              {mi > 0 && <span className="move-sep"> </span>}
+                              <button
+                                className={`line-move-btn ${mi % 2 === 0 ? 'white-move' : 'black-move'}`}
+                                onClick={() => playMove(m)}
+                                title="Click to play this move"
+                              >
+                                {mi % 2 === 0 && history.length % 2 === 0
+                                  ? `${Math.floor((history.length + mi) / 2 + 1)}.` : ''}{m}
+                              </button>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                        <div className="line-info">
+                          <span className="line-type-badge">{STYLE_LABELS[line.target_type] || line.target_type}</span>
+                          {line.games_played > 0
+                            ? <span className="line-stats">{line.win_rate} wins · {line.games_played} games</span>
+                            : <span className="line-stats">{line.structure_win_rate} in this structure</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="hint-text">No data yet — you haven't played from here before. Explore freely!</p>
+                )}
+              </>
+            ) : (
+              <>
+                <h4 className="section-title">Black's common replies</h4>
+                <p className="hint-text">From your game history — click to play on the board</p>
+                {mentorData.opponent_moves?.length > 0 ? (
+                  <ul className="opp-list">
+                    {mentorData.opponent_moves.map((m, i) => (
+                      <li key={i} className="opp-item" onClick={() => playMove(m.san)}>
+                        <span className="opp-san">{m.san}</span>
+                        <WinBar wins={m.wins} draws={m.draws} losses={m.losses} />
+                        <div className="opp-meta">
+                          <span>{m.games} games</span>
+                          <span className={parseInt(m.user_win_rate) >= 50 ? 'good' : 'bad'}>
+                            You win {m.user_win_rate}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="hint-text">No opponent data for this position yet.</p>
+                )}
+              </>
+            )
+          ) : (
+            <p className="hint-text">Make a move to start coaching.</p>
+          )}
         </div>
       </div>
 
-      <div className="sidebar-section">
-        <div className="coach-panel">
-          <h3>♟ AI Chess Second</h3>
+      {/* ── CENTER: Board ── */}
+      <div className="board-section">
+        <h2 className="board-title">Interactive Coaching Board</h2>
 
-          {coachLoading ? (
-            <p className="analyzing">Analyzing position...</p>
-          ) : coachData ? (
-            <>
-              {currentType && (
-                <div className={`position-badge ${isStrength ? 'strength' : 'neutral'}`}>
-                  <span className="badge-label">Current structure</span>
-                  <span className="badge-type">{STYLE_LABELS[currentType] || currentType}</span>
-                  {isStrength && <span className="badge-star">⭐ Your strength!</span>}
-                </div>
-              )}
+        <div className="board-with-eval">
+          {/* Vertical eval bar */}
+          <div className="eval-wrap">
+            <span className="eval-num">{evalLabel}</span>
+            <div className="eval-bar">
+              <div className="eval-black-part" style={{ height: `${100 - whitePct}%` }} />
+              <div className="eval-white-part" style={{ height: `${whitePct}%` }} />
+            </div>
+            <span className="eval-side">{evaluation > 0 ? '▲' : evaluation < 0 ? '▼' : '='}</span>
+          </div>
 
-              {coachData.total_games > 0 && (
-                <p className="record">
-                  Your results in <em>{STYLE_LABELS[currentType]}</em> positions:{' '}
-                  <span className="win">{coachData.wins}W</span>{' · '}
-                  <span className="draw">{coachData.draws}D</span>{' · '}
-                  <span className="loss">{coachData.losses}L</span>
-                  {' '}
-                  <span className="win-pct">
-                    ({coachData.total_games > 0
-                      ? `${Math.round(coachData.wins / coachData.total_games * 100)}% wins`
-                      : '—'})
-                  </span>
-                </p>
-              )}
-
-              <h4>Coaching Advice</h4>
-              {coachData.recommended_moves?.length > 0 ? (
-                <ul className="recommendations">
-                  {coachData.recommended_moves.map((rec, i) => (
-                    <li key={i} className="rec-item">
-                      <span className="rec-move">{rec.move}</span>
-                      <span className="rec-arrow">→</span>
-                      <span className="rec-detail">
-                        steers to <strong>{STYLE_LABELS[rec.style] || rec.style}</strong>
-                        {rec.total_games_in_type > 0
-                          ? ` · ${rec.win_rate} wins across ${rec.total_games_in_type} games`
-                          : ''}
-                        {rec.times_you_played > 0
-                          ? ` · you've played this ${rec.times_you_played}×`
-                          : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="no-recs">
-                  {moveHistory.length === 0
-                    ? 'Make your first move to get personalized coaching.'
-                    : 'No moves here lead directly to your preferred structures. Play flexibly and keep pieces active.'}
-                </p>
-              )}
-            </>
-          ) : (
-            <p>Make a move to start coaching.</p>
-          )}
+          <Chessboard
+            position={game.fen()}
+            onPieceDrop={onPieceDrop}
+            onSquareClick={handleSquareClick}
+            boardOrientation={color || 'white'}
+            boardWidth={400}
+            customSquareStyles={customSquareStyles}
+            animationDuration={150}
+          />
         </div>
 
-        <div className="explorer-panel">
-          <h3>Your Moves Here</h3>
-          <p className="explorer-hint">Moves you've played from this position</p>
-          {explorerData?.moves?.length > 0 ? (
-            <ul className="explorer-moves">
-              {explorerData.moves.slice(0, 6).map(m => {
-                const total = (m.white || 0) + (m.draws || 0) + (m.black || 0);
-                const winPct = total > 0 ? Math.round(m.white / total * 100) : 0;
-                return (
-                  <li key={m.san} onClick={() => handleExplorerMove(m.san)} className="explorer-move">
-                    <strong className="exp-san">{m.san}</strong>
-                    <span className="exp-games">{total}×</span>
-                    <span className="exp-bar">
-                      <span className="exp-white" style={{ width: `${winPct}%` }} />
-                    </span>
-                    <span className="exp-pct">{winPct}% wins</span>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="no-explorer">
-              {explorerData === null
-                ? 'Loading...'
-                : 'You haven\'t played from this position in your game history.'}
-            </p>
-          )}
+        {/* Move history strip */}
+        <div className="move-history">
+          {history.length === 0
+            ? <span className="hint-text">No moves yet</span>
+            : history.map((m, i) => (
+                <span key={i} className="hist-move">
+                  {i % 2 === 0 && <span className="hist-num">{Math.floor(i / 2) + 1}.</span>}
+                  {m}
+                </span>
+              ))
+          }
         </div>
+
+        <div className="board-actions">
+          <button className="btn-secondary" onClick={handleUndo} disabled={history.length === 0}>↩ Undo</button>
+          <button className="btn-secondary" onClick={handleBoardReset}>Reset Board</button>
+          <button className="btn-danger" onClick={onReset}>Start Over</button>
+        </div>
+      </div>
+
+      {/* ── RIGHT: Your Games ── */}
+      <div className="your-games-panel panel">
+        <div className="panel-header">
+          <span className="panel-icon">📊</span>
+          <h3>Your Games Here</h3>
+        </div>
+        <p className="hint-text">Moves you've played from this position — click to play</p>
+
+        {yourGames?.moves?.length > 0 ? (
+          <ul className="your-list">
+            {yourGames.moves.slice(0, 8).map(m => {
+              const total = (m.white || 0) + (m.draws || 0) + (m.black || 0);
+              const wins = color === 'white' ? (m.white || 0) : (m.black || 0);
+              const draws = m.draws || 0;
+              const losses = total - wins - draws;
+              const winPct = total > 0 ? Math.round(wins / total * 100) : 0;
+              return (
+                <li key={m.san} className="your-item" onClick={() => playMove(m.san)}>
+                  <div className="your-item-top">
+                    <span className="your-san">{m.san}</span>
+                    <span className="your-count">{total}×</span>
+                    <span className={`your-pct ${winPct >= 50 ? 'good' : 'bad'}`}>{winPct}%</span>
+                  </div>
+                  <WinBar wins={wins} draws={draws} losses={losses} />
+                  <div className="your-item-bottom">
+                    <span className="win">{wins}W</span>
+                    <span className="draw"> · {draws}D</span>
+                    <span className="loss"> · {losses}L</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="no-data-box">
+            <p>{yourGames === null ? 'Loading…' : "You haven't played from this position before."}</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-export default InteractiveCoach;

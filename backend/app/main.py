@@ -66,6 +66,10 @@ class QuestionnaireResponse(BaseModel):
 class CoachPositionRequest(BaseModel):
     moves: List[str]  # SAN move history from chess.js, e.g. ["e4", "e5", "Nf3"]
 
+class CoachLinesRequest(BaseModel):
+    moves: List[str]
+    color: str  # "white" or "black" — the user's playing color
+
 @app.post("/coach/position")
 async def coach_position(request: CoachPositionRequest):
     global user_preferences, games_data, game_stats_by_type
@@ -186,6 +190,141 @@ async def coach_position(request: CoachPositionRequest):
         "current_position_type": current_type,
         "recommended_moves": recommendations[:3]
     }
+
+@app.post("/coach/lines")
+async def coach_lines(request: CoachLinesRequest):
+    """
+    Turn-aware coaching:
+    - User's turn  → 3 recommended lines from game history (user_move, opp_reply, user_followup)
+    - Opponent turn → popular opponent responses the user has faced, with user win rates
+    """
+    global user_preferences, games_data, game_stats_by_type
+    import chess as chess_lib
+
+    board = chess_lib.Board()
+    for san in request.moves:
+        try:
+            board.push_san(san)
+        except Exception:
+            break
+
+    current_fen = board.fen()
+    target_key = _fen_key(current_fen)
+    initial_key = _fen_key(chess_lib.Board().fen())
+    is_start = target_key == initial_key
+
+    is_white_to_move = board.turn == chess_lib.WHITE
+    user_plays_white = request.color.lower() == "white"
+    is_user_turn = (is_white_to_move == user_plays_white)
+
+    username = (user_preferences or {}).get("username", "").lower()
+    type_stats = game_stats_by_type or {}
+
+    if not games_data:
+        return {"is_user_turn": is_user_turn, "lines": [], "opponent_moves": []}
+
+    # --- Helper: find next move index in a game at the target position ---
+    def find_idx(g_moves, g_positions):
+        if is_start and g_moves:
+            return 0
+        for i, pfn in enumerate(g_positions):
+            if _fen_key(pfn) == target_key and i + 1 < len(g_moves):
+                return i + 1
+        return None
+
+    def outcome_key(result, is_white_in_game):
+        if result == "1-0": return "wins" if is_white_in_game else "losses"
+        if result == "0-1": return "losses" if is_white_in_game else "wins"
+        return "draws"
+
+    if is_user_turn:
+        # Build move tree: user_move → opp_response → user_followup → stats
+        move_tree: Dict = {}
+        for gd in games_data:
+            g_moves = gd.get("moves", [])
+            g_positions = gd.get("positions", [])
+            oc = outcome_key(gd.get("result", "*"), gd.get("white", "").lower() == username)
+            idx = find_idx(g_moves, g_positions)
+            if idx is None or idx >= len(g_moves):
+                continue
+
+            um = g_moves[idx]
+            om = g_moves[idx + 1] if idx + 1 < len(g_moves) else None
+            uf = g_moves[idx + 2] if idx + 2 < len(g_moves) else None
+
+            if um not in move_tree:
+                move_tree[um] = {"wins": 0, "draws": 0, "losses": 0, "opp": {}}
+            move_tree[um][oc] += 1
+
+            if om:
+                if om not in move_tree[um]["opp"]:
+                    move_tree[um]["opp"][om] = {"wins": 0, "draws": 0, "losses": 0, "followup": {}}
+                move_tree[um]["opp"][om][oc] += 1
+                if uf:
+                    fu = move_tree[um]["opp"][om]["followup"]
+                    if uf not in fu:
+                        fu[uf] = {"wins": 0, "draws": 0, "losses": 0}
+                    fu[uf][oc] += 1
+
+        lines = []
+        for um, data in sorted(move_tree.items(), key=lambda x: x[1]["wins"], reverse=True)[:3]:
+            total = data["wins"] + data["draws"] + data["losses"]
+            win_rate = int(data["wins"] / total * 100) if total > 0 else 0
+
+            best_opp, best_fu = None, None
+            if data["opp"]:
+                best_opp = max(data["opp"].items(), key=lambda x: sum(v for k, v in x[1].items() if k != "followup"))[0]
+                fu_map = data["opp"][best_opp]["followup"]
+                if fu_map:
+                    best_fu = max(fu_map.items(), key=lambda x: x[1]["wins"])[0]
+
+            future_type = "Mixed"
+            try:
+                tb = board.copy()
+                tb.push_san(um)
+                future_type = PositionClassifier.classify_position(tb.fen()).get("position_type", "Mixed")
+            except Exception:
+                pass
+
+            ts = type_stats.get(future_type, {"win_rate": 0})
+            line_moves = [m for m in [um, best_opp, best_fu] if m]
+
+            lines.append({
+                "moves": line_moves,
+                "target_type": future_type,
+                "win_rate": f"{win_rate}%",
+                "games_played": total,
+                "structure_win_rate": f"{ts.get('win_rate', 0):.0f}%",
+            })
+
+        return {"is_user_turn": True, "lines": lines, "opponent_moves": []}
+
+    else:
+        # Opponent's turn — collect opponent moves from game history
+        opp_stats: Dict = {}
+        for gd in games_data:
+            g_moves = gd.get("moves", [])
+            g_positions = gd.get("positions", [])
+            oc = outcome_key(gd.get("result", "*"), gd.get("white", "").lower() == username)
+            idx = find_idx(g_moves, g_positions)
+            if idx is None or idx >= len(g_moves):
+                continue
+            om = g_moves[idx]
+            if om not in opp_stats:
+                opp_stats[om] = {"wins": 0, "draws": 0, "losses": 0}
+            opp_stats[om][oc] += 1
+
+        opp_moves = []
+        for san, stats in sorted(opp_stats.items(), key=lambda x: sum(x[1].values()), reverse=True)[:6]:
+            total = stats["wins"] + stats["draws"] + stats["losses"]
+            opp_moves.append({
+                "san": san,
+                "games": total,
+                "user_win_rate": f"{int(stats['wins'] / total * 100) if total > 0 else 0}%",
+                "wins": stats["wins"], "draws": stats["draws"], "losses": stats["losses"],
+            })
+
+        return {"is_user_turn": False, "lines": [], "opponent_moves": opp_moves}
 
 @app.get("/explorer/moves")
 async def explorer_proxy(fen: str):
