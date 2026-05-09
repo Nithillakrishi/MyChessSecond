@@ -8,13 +8,15 @@
     "react": "^18.2.0",
     "react-chessboard": "^4.7.2",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "stockfish": "^18.0.7"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "copy-stockfish": "node -e \"const fs=require('fs');['stockfish-18-lite-single.js','stockfish-18-lite-single.wasm'].forEach(f=>{fs.copyFileSync('node_modules/stockfish/bin/'+f,'public/'+f);console.log('Copied '+f);})\""
   },
   "eslintConfig": {
     "extends": [
