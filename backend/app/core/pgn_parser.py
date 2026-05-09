@@ -111,12 +111,17 @@ class PGNParser:
         return opening_groups
     
     @staticmethod
-    def filter_by_color(games: List[chess.pgn.Game], color: str) -> List[chess.pgn.Game]:
-        """Filter games where player played as specific color (white/black)"""
+    def filter_by_color(games: List[chess.pgn.Game], color: str, username: str = "") -> List[chess.pgn.Game]:
+        """Filter games where the given username played as the specified color (white/black)"""
         filtered = []
+        username_normalized = username.lower().strip()
         for game in games:
             if color.lower() == "white":
-                filtered.append(game)
+                white_player = game.headers.get("White", "").lower().strip()
+                if not username_normalized or white_player == username_normalized:
+                    filtered.append(game)
             elif color.lower() == "black":
-                filtered.append(game)
+                black_player = game.headers.get("Black", "").lower().strip()
+                if not username_normalized or black_player == username_normalized:
+                    filtered.append(game)
         return filtered
