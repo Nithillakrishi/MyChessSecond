@@ -183,6 +183,7 @@ function App() {
           {error && <div className="error-message" style={{ margin: '0 auto', maxWidth: 600 }}>{error}</div>}
           <Questionnaire
             questions={questionnaireData.questions}
+            positionTypes={questionnaireData.position_types}
             username={username}
             onSubmit={handlePreferencesSubmitted}
             disabled={loading}

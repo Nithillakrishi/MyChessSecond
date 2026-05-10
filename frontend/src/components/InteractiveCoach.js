@@ -16,6 +16,14 @@ const STYLE_LABELS = {
   LongMiddlegame: 'Long Middlegame',
   EndgameApproaching: 'Endgame',
   Mixed: 'Mixed',
+  OpenGame: 'Open Game',
+  ClosedGame: 'Closed Game',
+  PassedPawn: 'Passed Pawn',
+  WeakKing: 'Weak King',
+  RookEndgame: 'Rook Endgame',
+  OpenFiles: 'Open Files',
+  IsolatedPawn: 'Isolated Pawn',
+  PawnBreakthrough: 'Pawn Breakthrough',
 };
 
 // ── Stockfish hook ──────────────────────────────────────────────────────────
@@ -24,53 +32,86 @@ function useStockfish() {
   const [sfInfo, setSfInfo] = useState({ score: 0, type: 'cp', depth: 0, bestMove: null, ready: false });
 
   useEffect(() => {
-    const engine = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
-    engineRef.current = engine;
+    try {
+      const engine = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
+      engineRef.current = engine;
 
-    engine.onmessage = (e) => {
-      const line = typeof e.data === 'string' ? e.data : String(e.data);
+      engine.onerror = (err) => {
+        console.error('Stockfish worker error:', err);
+      };
 
-      if (line === 'readyok') {
-        setSfInfo(p => ({ ...p, ready: true }));
-        return;
-      }
+      engine.onmessage = (e) => {
+        try {
+          const line = typeof e.data === 'string' ? e.data : String(e.data);
 
-      // Parse score from info lines
-      if (line.startsWith('info') && line.includes('score')) {
-        const cpMatch   = line.match(/score cp (-?\d+)/);
-        const mateMatch = line.match(/score mate (-?\d+)/);
-        const depthMatch = line.match(/\bdepth (\d+)/);
-        const depth = depthMatch ? parseInt(depthMatch[1]) : 0;
+          if (line === 'readyok') {
+            setSfInfo(p => ({ ...p, ready: true }));
+            return;
+          }
 
-        if (mateMatch) {
-          setSfInfo(p => ({ ...p, score: parseInt(mateMatch[1]), type: 'mate', depth }));
-        } else if (cpMatch) {
-          setSfInfo(p => ({ ...p, score: parseInt(cpMatch[1]) / 100, type: 'cp', depth }));
+          // Parse score from info lines
+          if (line.startsWith('info') && line.includes('score')) {
+            const cpMatch   = line.match(/score cp (-?\d+)/);
+            const mateMatch = line.match(/score mate (-?\d+)/);
+            const depthMatch = line.match(/\bdepth (\d+)/);
+            const depth = depthMatch ? parseInt(depthMatch[1]) : 0;
+
+            if (mateMatch) {
+              setSfInfo(p => ({ ...p, score: parseInt(mateMatch[1]), type: 'mate', depth }));
+            } else if (cpMatch) {
+              setSfInfo(p => ({ ...p, score: parseInt(cpMatch[1]) / 100, type: 'cp', depth }));
+            }
+          }
+
+          if (line.startsWith('bestmove')) {
+            const m = line.match(/bestmove (\S+)/);
+            if (m && m[1] !== '(none)') setSfInfo(p => ({ ...p, bestMove: m[1] }));
+          }
+        } catch (err) {
+          console.error('Error processing Stockfish message:', err);
         }
+      };
+
+      try {
+        engine.postMessage('uci');
+        engine.postMessage('ucinewgame');
+        engine.postMessage('isready');
+      } catch (err) {
+        console.error('Error sending to Stockfish:', err);
       }
 
-      if (line.startsWith('bestmove')) {
-        const m = line.match(/bestmove (\S+)/);
-        if (m && m[1] !== '(none)') setSfInfo(p => ({ ...p, bestMove: m[1] }));
-      }
-    };
-
-    engine.postMessage('uci');
-    engine.postMessage('ucinewgame');
-    engine.postMessage('isready');
-
-    return () => {
-      engine.postMessage('quit');
-      engine.terminate();
-    };
+      return () => {
+        try {
+          engine.postMessage('quit');
+          engine.terminate();
+        } catch (err) {
+          console.error('Error terminating Stockfish:', err);
+        }
+      };
+    } catch (err) {
+      console.error('Error initializing Stockfish:', err);
+      return () => {};
+    }
   }, []);
 
   const analyse = useCallback((fen) => {
-    if (!engineRef.current) return;
-    engineRef.current.postMessage('stop');
-    engineRef.current.postMessage(`position fen ${fen}`);
-    engineRef.current.postMessage('go depth 20');
-    setSfInfo(p => ({ ...p, bestMove: null, depth: 0 }));
+    if (!engineRef.current || !fen) return;
+    
+    try {
+      // Validate FEN format
+      const fenParts = fen.trim().split(' ');
+      if (fenParts.length < 4) {
+        console.error('Invalid FEN (missing parts):', fen);
+        return;
+      }
+      
+      engineRef.current.postMessage('stop');
+      engineRef.current.postMessage(`position fen ${fen}`);
+      engineRef.current.postMessage('go depth 20');
+      setSfInfo(p => ({ ...p, bestMove: null, depth: 0 }));
+    } catch (err) {
+      console.error('Error analyzing position:', err, { fen });
+    }
   }, []);
 
   return { sfInfo, analyse };
@@ -140,23 +181,46 @@ export default function InteractiveCoach({ username, preferences, color, onReset
 
   // ── Fetch coach data + your-games whenever board changes ──
   const fetchAll = useCallback(async (g) => {
-    const history = g.history();
-    const fen = g.fen();
-
-    analyse(fen);   // kick off Stockfish analysis
-
-    setMentorLoading(true);
     try {
-      const [mentorRes, gamesRes, explorerRes] = await Promise.all([
-        axios.post(`${API_BASE}/coach/lines`, { moves: history, color }),
-        axios.get(`${API_BASE}/explorer/moves`, { params: { fen } }),
-        axios.get(`${API_BASE}/chess-explorer`, { params: { fen } }),
-      ]);
-      setMentorData(mentorRes.data);
-      setYourGames(gamesRes.data);
-      setChessExplorer(explorerRes.data);
+      const history = g.history();
+      const fen = g.fen();
+
+      // Validate FEN before sending to Stockfish
+      if (!fen || fen.split(' ').length < 4) {
+        console.error('Invalid FEN:', fen);
+        return;
+      }
+
+      analyse(fen);   // kick off Stockfish analysis
+
+      setMentorLoading(true);
+      
+      // Fetch data with individual error handling
+      try {
+        const mentorRes = await axios.post(`${API_BASE}/coach/lines`, { moves: history, color });
+        setMentorData(mentorRes.data);
+      } catch (err) {
+        console.error('Coach lines error:', err.response?.data || err.message);
+        setMentorData(null);
+      }
+
+      try {
+        const gamesRes = await axios.get(`${API_BASE}/explorer/moves`, { params: { fen } });
+        setYourGames(gamesRes.data);
+      } catch (err) {
+        console.error('Explorer moves error:', err.response?.data || err.message);
+        setYourGames(null);
+      }
+
+      try {
+        const explorerRes = await axios.get(`${API_BASE}/chess-explorer`, { params: { fen } });
+        setChessExplorer(explorerRes.data);
+      } catch (err) {
+        console.error('Chess explorer error:', err.response?.data || err.message);
+        setChessExplorer(null);
+      }
     } catch (err) {
-      console.error('Fetch error', err);
+      console.error('Fetch error:', err);
     } finally {
       setMentorLoading(false);
     }
@@ -166,11 +230,34 @@ export default function InteractiveCoach({ username, preferences, color, onReset
 
   // ── Move execution ──
   const applyMove = useCallback((from, to, san) => {
-    const copy = new Chess(game.fen());
     try {
-      const move = san ? copy.move(san) : copy.move({ from, to, promotion: 'q' });
-      if (move) { setGame(copy); setSelectedSquare(null); return true; }
-    } catch {}
+      const copy = new Chess(game.fen());
+      let move;
+      
+      if (san) {
+        // Validate move in SAN format
+        move = copy.move(san, { sloppy: false });
+      } else if (from && to) {
+        // Validate move from source and destination squares
+        move = copy.move({ from, to, promotion: 'q' });
+      } else {
+        return false;
+      }
+      
+      if (move) {
+        const newFen = copy.fen();
+        // Validate the resulting FEN
+        if (!newFen || newFen.split(' ').length < 4) {
+          console.error('Invalid FEN after move:', newFen);
+          return false;
+        }
+        setGame(copy);
+        setSelectedSquare(null);
+        return true;
+      }
+    } catch (err) {
+      console.error('Move error:', err.message, { from, to, san });
+    }
     return false;
   }, [game]);
 

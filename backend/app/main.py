@@ -813,7 +813,7 @@ async def generate_questionnaire(request: FetchGamesRequest):
         game_stats_by_type = _game_stats
 
         # Find contrasting position pairs for questionnaire
-        position_pairs = PositionClassifier.find_best_position_pairs(position_types_map, num_pairs=5)
+        position_pairs = PositionClassifier.find_best_position_pairs(position_types_map, num_pairs=10)
         if not position_pairs:
             raise HTTPException(status_code=400, detail="Not enough position types to generate questionnaire")
 
@@ -826,8 +826,30 @@ async def generate_questionnaire(request: FetchGamesRequest):
             "SharpTactical": "Tactical positions with exposed kings and forcing play",
             "LongMiddlegame": "Many pieces remaining, complex strategic battles",
             "EndgameApproaching": "Fewer pieces, simplified positions near endgame",
-            "Mixed": "Combination of different strategic themes"
+            "Mixed": "Combination of different strategic themes",
+            "OpenGame": "Open lines and rapid piece development with tactical chances",
+            "ClosedGame": "Closed pawn structures requiring patient maneuvering",
+            "PassedPawn": "Positions featuring advanced passed pawns creating winning chances",
+            "WeakKing": "Exposed king positions with vulnerable pawn shelter",
+            "RookEndgame": "Endgames with rooks and pawns, requiring precise technique",
+            "OpenFiles": "Open files for rooks with attacking possibilities",
+            "IsolatedPawn": "Weak isolated pawns creating long-term strategic pressure",
+            "PawnBreakthrough": "Advanced pawn storms and breakthrough opportunities",
         }
+
+        # Build comprehensive position types with win rates
+        position_types_with_stats = []
+        for pos_type in sorted(game_stats_by_type.keys()):
+            stats = game_stats_by_type[pos_type]
+            position_types_with_stats.append({
+                "position_type": pos_type,
+                "win_rate": f"{stats['win_rate']:.1f}%",
+                "wins": stats['wins'],
+                "draws": stats['draws'],
+                "losses": stats['losses'],
+                "total_games": stats['total'],
+                "description": position_descriptions.get(pos_type, f"{pos_type} positions")
+            })
 
         questions = []
         for i, (pos_type_1, pos_type_2) in enumerate(position_pairs):
@@ -847,6 +869,8 @@ async def generate_questionnaire(request: FetchGamesRequest):
             "username": request.username,
             "total_games_analyzed": player_profile.get("total_games", 0),
             "position_types_found": len(position_types_map),
+            "position_types": list(position_types_map.keys()),
+            "position_types_with_stats": position_types_with_stats,
             "questions": questions
         }
     except Exception as e:
