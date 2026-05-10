@@ -52,8 +52,7 @@ export default function LandingPage({ onStart }) {
 
       {/* ── Hero ── */}
       <section className="lp-hero">
-        <div className="lp-hero-glow lp-glow-green"/>
-        <div className="lp-hero-glow lp-glow-gold"/>
+        {/* Glows removed */}
 
         <div className="lp-badge">AI-Powered · Stockfish 18 · Your Real Games</div>
 
@@ -76,22 +75,7 @@ export default function LandingPage({ onStart }) {
           </button>
         </div>
 
-        {/* Fake board visual */}
-        <div className="lp-board-visual">
-          {Array.from({length: 64}, (_, i) => {
-            const row = Math.floor(i / 8), col = i % 8;
-            const light = (row + col) % 2 === 0;
-            return <div key={i} className={`lp-sq ${light ? 'lp-sq-l' : 'lp-sq-d'}`}/>;
-          })}
-          <div className="lp-board-overlay">
-            <div className="lp-board-pill">♟ Analyzing position…</div>
-            <div className="lp-board-line"><span className="lp-move">1. e4</span><span className="lp-move">e5</span><span className="lp-move">2. Nf3</span></div>
-            <div className="lp-board-eval">
-              <span className="lp-eval-green">+0.3</span>
-              <span className="lp-eval-lbl">Stockfish eval</span>
-            </div>
-          </div>
-        </div>
+        {/* Fake board visual removed */}
       </section>
 
       {/* ── Stats strip ── */}

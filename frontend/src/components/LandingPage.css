@@ -72,7 +72,7 @@
 .lp-hero {
   position: relative;
   text-align: center;
-  padding: 100px 24px 80px;
+  padding: 0 24px 20px; /* Removed top padding */
   overflow: hidden;
 }
 

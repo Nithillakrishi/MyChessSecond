@@ -166,35 +166,117 @@ class PositionClassifier:
         king = classification["king_safety"]
         space = classification["space_control"]
         
+        # Check for endgames first (fewer pieces)
+        total_pieces = piece["white_piece_count"] + piece["black_piece_count"]
+        
+        # Rook endgame
+        white_rooks = len(board.pieces(chess.ROOK, chess.WHITE))
+        black_rooks = len(board.pieces(chess.ROOK, chess.BLACK))
+        if total_pieces <= 4 and (white_rooks > 0 or black_rooks > 0):
+            return "RookEndgame"
+        
+        # Endgame-approaching (very few pieces)
+        if piece["white_piece_count"] <= 2 or piece["black_piece_count"] <= 2:
+            return "EndgameApproaching"
+        
         # Fianchetto positions
         if pawn["white_fianchetto"] or pawn["black_fianchetto"]:
             return "Fianchetto"
+        
+        # Weak King positions
+        if king["white_king_safety"] < 0.4 or king["black_king_safety"] < 0.4:
+            return "WeakKing"
+        
+        # Isolated Pawn detection
+        white_pawns = board.pieces(chess.PAWN, chess.WHITE)
+        black_pawns = board.pieces(chess.PAWN, chess.BLACK)
+        white_pawn_files = [chess.square_file(sq) for sq in white_pawns]
+        black_pawn_files = [chess.square_file(sq) for sq in black_pawns]
+        
+        # Check for isolated pawns
+        def has_isolated_pawn(pawn_files):
+            for f in pawn_files:
+                if f not in pawn_files or (f-1 not in pawn_files and f+1 not in pawn_files):
+                    return True
+            return False
+        
+        if has_isolated_pawn(white_pawn_files) or has_isolated_pawn(black_pawn_files):
+            return "IsolatedPawn"
+        
+        # Passed Pawn detection
+        def has_passed_pawn(board_obj, color):
+            pawns = board_obj.pieces(chess.PAWN, color)
+            for pawn_sq in pawns:
+                pawn_file = chess.square_file(pawn_sq)
+                pawn_rank = chess.square_rank(pawn_sq)
+                is_passed = True
+                enemy_color = chess.BLACK if color == chess.WHITE else chess.WHITE
+                enemy_pawns = board_obj.pieces(chess.PAWN, enemy_color)
+                for enemy_pawn in enemy_pawns:
+                    enemy_file = chess.square_file(enemy_pawn)
+                    enemy_rank = chess.square_rank(enemy_pawn)
+                    if enemy_file in [pawn_file - 1, pawn_file, pawn_file + 1]:
+                        if (color == chess.WHITE and enemy_rank > pawn_rank) or \
+                           (color == chess.BLACK and enemy_rank < pawn_rank):
+                            is_passed = False
+                            break
+                if is_passed:
+                    return True
+            return False
+        
+        if has_passed_pawn(board, chess.WHITE) or has_passed_pawn(board, chess.BLACK):
+            return "PassedPawn"
+        
+        # Pawn Breakthrough detection (advanced pawns on multiple files)
+        white_pawns = list(board.pieces(chess.PAWN, chess.WHITE))
+        black_pawns = list(board.pieces(chess.PAWN, chess.BLACK))
+        advanced_white_pawns = [sq for sq in white_pawns if chess.square_rank(sq) >= 5]
+        advanced_black_pawns = [sq for sq in black_pawns if chess.square_rank(sq) <= 2]
+        if len(advanced_white_pawns) >= 2 or len(advanced_black_pawns) >= 2:
+            return "PawnBreakthrough"
+        
+        # Open Files detection
+        white_rooks = board.pieces(chess.ROOK, chess.WHITE) | board.pieces(chess.QUEEN, chess.WHITE)
+        black_rooks = board.pieces(chess.ROOK, chess.BLACK) | board.pieces(chess.QUEEN, chess.BLACK)
+        open_files_count = 0
+        for file in range(8):
+            white_pawns_on_file = any(chess.square_file(sq) == file for sq in board.pieces(chess.PAWN, chess.WHITE))
+            black_pawns_on_file = any(chess.square_file(sq) == file for sq in board.pieces(chess.PAWN, chess.BLACK))
+            if not white_pawns_on_file and not black_pawns_on_file:
+                open_files_count += 1
+        
+        if open_files_count >= 2 and (len(white_rooks) > 0 or len(black_rooks) > 0):
+            return "OpenFiles"
         
         # Central control positions
         if piece["white_centralization"] > 5.5 or piece["black_centralization"] > 5.5:
             return "CentralControl"
         
-        # Kingside attack
+        # Kingside vs Queenside attack
         if piece["white_centralization"] > piece["black_centralization"] + 1:
             return "KingsideAttack"
         elif piece["black_centralization"] > piece["white_centralization"] + 1:
             return "QueensideAttack"
         
-        # Closed positional positions
-        if pawn["pawn_symmetry"] == "symmetric":
+        # Sharp tactical positions
+        if king["white_king_safety"] < 0.6 or king["black_king_safety"] < 0.6:
+            return "SharpTactical"
+        
+        # Closed positional positions (locked center like KIA)
+        if pawn["pawn_symmetry"] == "symmetric" and piece["white_piece_count"] > 4:
             return "ClosedPositional"
         
-        # Sharp tactical positions
-        if (king["white_king_safety"] < 0.5 or king["black_king_safety"] < 0.5):
-            return "SharpTactical"
+        # Closed game (early closed openings)
+        if pawn["pawn_symmetry"] == "symmetric" and piece["white_piece_count"] <= 4:
+            return "ClosedGame"
+        
+        # Open game (asymmetric pawn structure in early opening)
+        if pawn["pawn_symmetry"] == "asymmetric" and piece["white_piece_count"] <= 4:
+            return "OpenGame"
         
         # Long middlegame
         if piece["white_piece_count"] > 4 and piece["black_piece_count"] > 4:
             return "LongMiddlegame"
-        
-        # Endgame-approaching
-        if piece["white_piece_count"] <= 2 or piece["black_piece_count"] <= 2:
-            return "EndgameApproaching"
         
         return "Mixed"
     
