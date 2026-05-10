@@ -121,8 +121,8 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>♟ Chess Second</h1>
-        <p>Your Opening Coach</p>
+        <h1>♟ Chess <span>Second</span></h1>
+        <p>Opening Coach</p>
       </header>
 
       <main className="app-main">

@@ -219,25 +219,27 @@ export default function InteractiveCoach({ username, preferences, color, onReset
         )}
 
         {/* Stockfish best move hint */}
-        {sfInfo.ready && sfInfo.bestMove && (
-          <div className="sf-hint">
-            <span className="sf-label">Engine suggests</span>
-            <button className="sf-move-btn" onClick={() => {
-              // Convert UCI move (e2e4) to SAN
-              const copy = new Chess(game.fen());
-              try {
-                const from = sfInfo.bestMove.slice(0, 2);
-                const to   = sfInfo.bestMove.slice(2, 4);
-                const promo = sfInfo.bestMove[4] || 'q';
-                copy.move({ from, to, promotion: promo });
-                playMove(copy.history().slice(-1)[0]);
-              } catch {}
-            }}>
-              {sfInfo.bestMove}
-            </button>
-            <span className="sf-depth">d{sfInfo.depth}</span>
-          </div>
-        )}
+        {sfInfo.ready && sfInfo.bestMove && (() => {
+          // Convert UCI (e2e4) → SAN (e4) using chess.js
+          let sanLabel = sfInfo.bestMove;
+          try {
+            const tmp = new Chess(game.fen());
+            const from = sfInfo.bestMove.slice(0, 2);
+            const to   = sfInfo.bestMove.slice(2, 4);
+            const promo = sfInfo.bestMove[4] || undefined;
+            const result = tmp.move({ from, to, promotion: promo });
+            if (result) sanLabel = result.san;
+          } catch {}
+          return (
+            <div className="sf-hint">
+              <span className="sf-label">Engine suggests</span>
+              <button className="sf-move-btn" onClick={() => playMove(sanLabel)}>
+                {sanLabel}
+              </button>
+              <span className="sf-depth">d{sfInfo.depth}</span>
+            </div>
+          );
+        })()}
 
         <div className="mentor-body">
           {mentorLoading ? (

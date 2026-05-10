@@ -1,55 +1,88 @@
 .questionnaire-card {
-  background: white;
-  border-radius: 8px;
-  padding: 2rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  max-width: 800px;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 2.5rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  max-width: 780px;
   margin: 0 auto;
 }
 
+.questionnaire-card h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.questionnaire-card > p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
 .progress {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
 }
 
 .options-container {
   display: flex;
   align-items: stretch;
-  gap: 2rem;
-  margin-top: 2rem;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
 }
 
 .option-card {
   flex: 1;
   padding: 1.5rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   text-align: center;
+  background: var(--surface);
 }
 
 .option-card:hover {
-  border-color: #2196f3;
-  background-color: #f5f9ff;
-  transform: translateY(-2px);
+  border-color: var(--accent);
+  background: #EEF2FF;
+  box-shadow: 0 0 0 3px rgba(84,105,212,0.1);
+}
+
+.option-card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.option-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
 }
 
 .option-divider {
   display: flex;
   align-items: center;
-  font-weight: bold;
-  color: #888;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .stat {
   margin-top: 1rem;
-  padding: 0.5rem;
-  background: #e8f5e9;
-  border-radius: 4px;
-  color: #2e7d32;
-  font-weight: bold;
+  padding: 0.5rem 0.75rem;
+  background: #ECFDF5;
+  border-radius: 6px;
+  color: var(--success);
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .final-step {
@@ -60,39 +93,59 @@
   margin-top: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   text-align: left;
-  gap: 0.5rem;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .form-group input, .form-group select {
-  padding: 0.8rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(84,105,212,0.12);
 }
 
 .submit-btn {
-  background: #4caf50;
+  background: var(--accent);
   color: white;
   border: none;
-  padding: 1rem;
-  font-size: 1.1rem;
-  border-radius: 4px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  font-family: inherit;
+  transition: background 0.15s, box-shadow 0.15s;
 }
 
 .submit-btn:hover {
-  background: #43a047;
+  background: var(--accent-hover);
+  box-shadow: 0 4px 14px rgba(84,105,212,0.3);
 }
 
 .submit-btn:disabled {
-  background: #ccc;
+  background: var(--border);
+  color: var(--text-secondary);
   cursor: not-allowed;
+  box-shadow: none;
 }
