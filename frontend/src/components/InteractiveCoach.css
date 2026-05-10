@@ -1,11 +1,18 @@
 /* ── Root 3-column grid ── */
 .coach-root {
   display: grid;
-  grid-template-columns: 270px 1fr 260px;
+  grid-template-columns: 260px 1fr 270px;
   gap: 1.25rem;
-  max-width: 1100px;
+  max-width: 1150px;
   margin: 0 auto;
   align-items: start;
+}
+
+/* Right column stacks explorer + your games vertically */
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 /* ── Shared panel styles ── */
@@ -280,6 +287,97 @@
   transition: background 0.15s;
 }
 .btn-danger:hover { background: #c0392b; }
+
+/* ── Chess Explorer panel ── */
+.explorer-panel {
+  border-top: 3px solid #e67e22;
+}
+
+.explorer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.exp-item {
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  border: 1px solid #e8e8e8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.exp-item:hover {
+  background: #fff5ea;
+  border-color: #e67e22;
+}
+
+.exp-item-top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 4px;
+}
+
+.exp-rank {
+  font-size: 0.85rem;
+  font-weight: 900;
+  min-width: 14px;
+  text-align: center;
+}
+.rank-2 { color: #27ae60; }   /* Excellent */
+.rank-1 { color: #e67e22; }   /* Good */
+.rank-0 { color: #e74c3c; }   /* Dubious */
+
+.exp-san {
+  font-family: monospace;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #2c3e50;
+  flex: 1;
+}
+
+.exp-score {
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #888;
+  min-width: 34px;
+  text-align: right;
+}
+
+.exp-winrate {
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 36px;
+  text-align: right;
+}
+.exp-winrate.good    { color: #27ae60; }
+.exp-winrate.bad     { color: #e74c3c; }
+.exp-winrate.neutral { color: #e67e22; }
+
+.exp-bar-wrap {
+  height: 4px;
+  background: #e74c3c;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.exp-bar-fill {
+  height: 100%;
+  background: #27ae60;
+  transition: width 0.3s ease;
+}
+
+.exp-rank-label {
+  font-size: 0.68rem;
+  color: #bbb;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
 /* ── Your Games panel ── */
 .your-games-panel {

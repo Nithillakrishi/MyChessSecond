@@ -125,6 +125,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [mentorData, setMentorData] = useState(null);
   const [yourGames, setYourGames] = useState(null);
+  const [chessExplorer, setChessExplorer] = useState(null);
   const [mentorLoading, setMentorLoading] = useState(false);
 
   const { sfInfo, analyse } = useStockfish();
@@ -146,12 +147,14 @@ export default function InteractiveCoach({ username, preferences, color, onReset
 
     setMentorLoading(true);
     try {
-      const [mentorRes, gamesRes] = await Promise.all([
+      const [mentorRes, gamesRes, explorerRes] = await Promise.all([
         axios.post(`${API_BASE}/coach/lines`, { moves: history, color }),
         axios.get(`${API_BASE}/explorer/moves`, { params: { fen } }),
+        axios.get(`${API_BASE}/chess-explorer`, { params: { fen } }),
       ]);
       setMentorData(mentorRes.data);
       setYourGames(gamesRes.data);
+      setChessExplorer(explorerRes.data);
     } catch (err) {
       console.error('Fetch error', err);
     } finally {
@@ -347,45 +350,90 @@ export default function InteractiveCoach({ username, preferences, color, onReset
         </div>
       </div>
 
-      {/* ── RIGHT: Your Games ── */}
-      <div className="your-games-panel panel">
-        <div className="panel-header">
-          <span className="panel-icon">📊</span>
-          <h3>Your Games Here</h3>
-        </div>
-        <p className="hint-text">Moves you've played — click to play on board</p>
+      {/* ── RIGHT: Chess Explorer + Your Games ── */}
+      <div className="right-column">
 
-        {yourGames?.moves?.length > 0 ? (
-          <ul className="your-list">
-            {yourGames.moves.slice(0, 8).map(m => {
-              const total = (m.white || 0) + (m.draws || 0) + (m.black || 0);
-              const wins  = color === 'white' ? (m.white || 0) : (m.black || 0);
-              const draws = m.draws || 0;
-              const losses = total - wins - draws;
-              const winPct = total > 0 ? Math.round(wins / total * 100) : 0;
-              return (
-                <li key={m.san} className="your-item" onClick={() => playMove(m.san)}>
-                  <div className="your-item-top">
-                    <span className="your-san">{m.san}</span>
-                    <span className="your-count">{total}×</span>
-                    <span className={`your-pct ${winPct >= 50 ? 'good' : 'bad'}`}>{winPct}%</span>
-                  </div>
-                  <WinBar wins={wins} draws={draws} losses={losses} />
-                  <div className="your-item-bottom">
-                    <span className="win">{wins}W</span>
-                    <span className="draw"> · {draws}D</span>
-                    <span className="loss"> · {losses}L</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className="no-data-box">
-            <p>{yourGames === null ? 'Loading…' : "You haven't played from this position."}</p>
+        {/* Chess Explorer (ChessDB) */}
+        <div className="explorer-panel panel">
+          <div className="panel-header">
+            <span className="panel-icon">🌐</span>
+            <h3>Chess Explorer</h3>
           </div>
-        )}
-      </div>
+          <p className="hint-text">Global database · click any move to play it</p>
+
+          {chessExplorer?.moves?.length > 0 ? (
+            <ul className="explorer-list">
+              {chessExplorer.moves.map((m, i) => {
+                const scoreLabel = m.score_cp === 0 ? '0.0'
+                  : m.score_cp > 0 ? `+${(m.score_cp / 100).toFixed(1)}`
+                  : (m.score_cp / 100).toFixed(1);
+                const winPct = Math.round(m.winrate);
+                return (
+                  <li key={m.san} className="exp-item" onClick={() => playMove(m.san)}>
+                    <div className="exp-item-top">
+                      <span className={`exp-rank rank-${m.rank}`}>{m.rank_symbol}</span>
+                      <span className="exp-san">{m.san}</span>
+                      <span className="exp-score">{scoreLabel}</span>
+                      <span className={`exp-winrate ${winPct >= 52 ? 'good' : winPct <= 48 ? 'bad' : 'neutral'}`}>
+                        {winPct}%
+                      </span>
+                    </div>
+                    <div className="exp-bar-wrap">
+                      <div className="exp-bar-fill" style={{ width: `${winPct}%` }} />
+                    </div>
+                    <p className="exp-rank-label">{m.rank_label}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="no-data-box">
+              <p>{chessExplorer === null ? 'Loading…' : 'No data for this position.'}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Your Games */}
+        <div className="your-games-panel panel">
+          <div className="panel-header">
+            <span className="panel-icon">📊</span>
+            <h3>Your Games Here</h3>
+          </div>
+          <p className="hint-text">Your personal moves — click to play</p>
+
+          {yourGames?.moves?.length > 0 ? (
+            <ul className="your-list">
+              {yourGames.moves.slice(0, 6).map(m => {
+                const total  = (m.white || 0) + (m.draws || 0) + (m.black || 0);
+                const wins   = color === 'white' ? (m.white || 0) : (m.black || 0);
+                const draws  = m.draws || 0;
+                const losses = total - wins - draws;
+                const winPct = total > 0 ? Math.round(wins / total * 100) : 0;
+                return (
+                  <li key={m.san} className="your-item" onClick={() => playMove(m.san)}>
+                    <div className="your-item-top">
+                      <span className="your-san">{m.san}</span>
+                      <span className="your-count">{total}×</span>
+                      <span className={`your-pct ${winPct >= 50 ? 'good' : 'bad'}`}>{winPct}%</span>
+                    </div>
+                    <WinBar wins={wins} draws={draws} losses={losses} />
+                    <div className="your-item-bottom">
+                      <span className="win">{wins}W</span>
+                      <span className="draw"> · {draws}D</span>
+                      <span className="loss"> · {losses}L</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="no-data-box">
+              <p>{yourGames === null ? 'Loading…' : "You haven't played from this position."}</p>
+            </div>
+          )}
+        </div>
+
+      </div>{/* end right-column */}
 
     </div>
   );
