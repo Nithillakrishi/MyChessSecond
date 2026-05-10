@@ -326,6 +326,53 @@ async def coach_lines(request: CoachLinesRequest):
 
         return {"is_user_turn": False, "lines": [], "opponent_moves": opp_moves}
 
+@app.get("/opening-explorer")
+async def opening_explorer(fen: str):
+    """
+    Global opening explorer using ChessDB public database.
+    Returns popular moves with engine score and winrate from millions of games.
+    """
+    import urllib.request
+    import urllib.parse
+
+    encoded = urllib.parse.quote(fen)
+    url = f"https://www.chessdb.cn/cdb.php?action=queryall&board={encoded}&json=1"
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json",
+            "Accept-Encoding": "identity",
+        })
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+
+        if data.get("status") != "ok" or not data.get("moves"):
+            return {"moves": [], "source": "chessdb"}
+
+        RANK_LABEL = {2: "Best", 1: "Good", 0: "Inaccurate"}
+        RANK_COLOR = {2: "best", 1: "good", 0: "weak"}
+
+        moves = []
+        for m in data["moves"][:8]:
+            rank = int(m.get("rank", 1))
+            note = m.get("note", "")
+            # note format: "! (29-13)" → extract annotation symbol
+            annotation = note.split(" ")[0] if note else ""
+            moves.append({
+                "san":        m.get("san", "?"),
+                "uci":        m.get("uci", ""),
+                "score":      int(m.get("score", 0)),
+                "winrate":    float(m.get("winrate", 50)),
+                "rank":       rank,
+                "rank_label": RANK_LABEL.get(rank, ""),
+                "rank_class": RANK_COLOR.get(rank, "good"),
+                "annotation": annotation,
+            })
+        return {"moves": moves, "source": "chessdb"}
+
+    except Exception as e:
+        return {"moves": [], "source": "chessdb", "error": str(e)}
+
 @app.get("/explorer/moves")
 async def explorer_proxy(fen: str):
     """Return moves played from this FEN position in the user's own game history."""
@@ -376,6 +423,53 @@ async def explorer_proxy(fen: str):
     moves_list.sort(key=lambda x: x["white"] + x["draws"] + x["black"], reverse=True)
 
     return {"moves": moves_list[:6], "source": "your_games"}
+
+
+@app.get("/chess-explorer")
+async def chess_explorer(fen: str):
+    """
+    Proxy ChessDB (free, no-auth) for opening statistics.
+    Returns moves sorted by win-rate with computer score and rank label.
+    ChessDB win-rate is from the perspective of the side to move.
+    """
+    import urllib.request
+    import urllib.parse
+
+    url = f"https://www.chessdb.cn/cdb.php?action=queryall&board={urllib.parse.quote(fen)}&json=1"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "ChessSecond/1.0"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception as e:
+        return {"moves": [], "error": str(e)}
+
+    if data.get("status") != "ok":
+        return {"moves": [], "error": data.get("status", "unknown")}
+
+    rank_labels = {2: "Excellent", 1: "Good", 0: "Dubious"}
+    rank_symbols = {2: "!", 1: "⊙", 0: "?"}
+
+    moves = []
+    for m in data.get("moves", []):
+        try:
+            winrate = float(m.get("winrate", 50))
+            score_cp = int(m.get("score", 0))
+            rank = int(m.get("rank", 1))
+            moves.append({
+                "san": m["san"],
+                "uci": m["uci"],
+                "winrate": round(winrate, 1),       # win% for side to move
+                "score_cp": score_cp,                # centipawns, side-to-move perspective
+                "rank": rank,
+                "rank_label": rank_labels.get(rank, ""),
+                "rank_symbol": rank_symbols.get(rank, ""),
+            })
+        except (KeyError, ValueError):
+            continue
+
+    # Sort: excellent first, then by winrate descending
+    moves.sort(key=lambda x: (x["rank"], x["winrate"]), reverse=True)
+    return {"moves": moves[:8]}
 
 
 @app.on_event("startup")
