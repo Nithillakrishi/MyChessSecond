@@ -1,399 +1,133 @@
-# Chess Second - Your Opening Coach 🏃♟️
+# MyChess2nd — AI-Powered Chess Opening Coach
 
-A smart chess opening analysis tool that creates **personalized opening repertoires** by matching your natural playing style with new openings to surprise opponents.
+A full-stack chess training platform that analyses your personal game history to build a data-driven opening repertoire, then lets you practise and explore with seven specialised training modes powered by Stockfish 18 and ChessDB.
 
-## The Problem
+---
 
-Chess players face a dilemma:
+## What it does
 
-- 🎯 You want to **try new openings** to surprise opponents
-- 😟 But you're afraid of leaving your **comfort zone** - positions you play well
+Import your Chess.com or Lichess games and get:
 
-**Chess Second solves this:** Find positions where you naturally excel, then learn how to reach them through different openings.
+- **Welcome dashboard** — Win rate, W/D/L donut, time-control breakdown, first-move bar charts
+- **AI Opening Coach** — Recommends opening lines derived from *your* games that lead to position types where you historically win, plus a live Stockfish best-line panel
+- **Chess Explorer** — Global opening statistics from ChessDB (quality rating ★●▲, win %, eval bar)
+- **Engine Training** — Stockfish 18 multi-PV analysis: 3 engine lines with full move sequence, like chess.com
+- **vs Player Database** — Load any opponent's Chess.com/Lichess games; frequency-based arrow overlays show their most common moves (darker = more frequent); engine auto-responds as them
+- **Custom Position** — Paste any FEN for instant ChessDB explorer + Stockfish analysis
+- **Play vs Stockfish** — 5 difficulty levels with a full game interface
 
-## The Solution
+---
 
-Instead of memorizing generic opening theory, Chess Second:
+## Tech stack
 
-1. **Analyzes your games** to find positions you play exceptionally well
-2. **Asks your preferences** via an interactive questionnaire (5 questions with 2 positions each)
-3. **Gets your desired opening moves** (what you want to play first)
-4. **Creates a personalized repertoire** combining:
-   - Your chosen opening moves (to surprise opponents)
-   - Your comfortable positions (where you play best)
-   - Games from your history showing successful play in these positions
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, react-chessboard v4, chess.js, Axios |
+| Engine | Stockfish 18 WASM (single-threaded, runs in browser) |
+| Opening data | ChessDB global database (via backend proxy) |
+| Backend | Python 3.11, FastAPI, Uvicorn |
+| Game import | Chess.com Public API + Lichess API |
+| Styling | Pure CSS, custom chess colour palette |
 
-### Example
+---
 
-> You play amazing in **Kingside Fianchetto positions** (which you normally reach via `1.d4 Nf6 2.c4 g6 3.g3`), but today you want to surprise with `1.c4`.
->
-> Chess Second navigates you through a **Reti Opening** or **English Opening** that also leads to similar Kingside Fianchetto structures - achieving both goals: surprising your opponent AND playing positions where you excel.
-
-## Current Status
-
-⚡ **Currently analyzing personal account: `NithilPY` (Chess.com)**
-
-This application is currently optimized for analyzing a single user's account and will be expanded to support multi-user comparison in future versions.
-
-**To analyze your own account**, visit: `http://localhost:3000` and enter your Chess.com or Lichess username.
-
-## Features
-
-- **Game Import**: Connect your Chess.com or Lichess account and import your games
-- **Comfort Zone Analysis**: Automatically identify positions where you play exceptionally well
-- **Interactive Questionnaire**: Answer 5 position preference questions to rank your favorite position types
-- **Opening Preference Input**: Choose your desired opening moves (1-3 moves) to surprise opponents
-- **Personalized Repertoire**: Get opening recommendations that combine:
-  - Your preferred opening moves
-  - Your comfortable position types
-  - Winning game examples from your history
-- **Smart Navigation**: See candidate lines and positions from your actual games showing successful play
-
-## Technology Stack
-
-- **Backend**: Python + FastAPI
-- **Frontend**: React + Axios
-- **Analysis**: Stockfish engine (for position evaluation)
-- **Data Sources**: Chess.com API + Lichess API
-
-## Project Structure
+## Project structure
 
 ```
 MyChessSecond/
 ├── backend/
 │   ├── app/
 │   │   ├── core/
-│   │   │   ├── game_fetcher.py      # Chess.com & Lichess API integration
-│   │   │   ├── pgn_parser.py        # Parse PGN games and extract openings
-│   │   │   ├── evaluator.py         # Stockfish integration
-│   │   │   ├── opening_analyzer.py  # Find and compare opening positions
-│   │   │   └── player_profiler.py   # Analyze player style
-│   │   └── main.py                  # FastAPI application
-│   ├── requirements.txt
-│   └── run.py
-├── frontend/
-│   ├── public/
-│   │   └── index.html
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── GameImporter.js
-│   │   │   ├── GameImporter.css
-│   │   │   ├── PlayerProfile.js
-│   │   │   ├── PlayerProfile.css
-│   │   │   ├── OpeningSelector.js
-│   │   │   ├── OpeningSelector.css
-│   │   │   ├── PositionComparison.js
-│   │   │   └── PositionComparison.css
-│   │   ├── App.js
-│   │   ├── App.css
-│   │   ├── index.js
-│   │   └── index.css
-│   └── package.json
-└── README.md
+│   │   │   ├── game_fetcher.py        # Chess.com & Lichess API integration
+│   │   │   ├── pgn_parser.py          # PGN parsing, move extraction
+│   │   │   ├── player_profiler.py     # Style analysis, time-control stats
+│   │   │   ├── position_classifier.py # Position type classification
+│   │   │   └── coach_engine.py        # AI coach line generation
+│   │   └── main.py                    # FastAPI routes
+│   └── requirements.txt
+└── frontend/
+    ├── public/
+    │   └── stockfish-18-lite-single.js  # Stockfish WASM worker
+    └── src/
+        └── components/
+            ├── LandingPage.js/css
+            ├── AppLayout.js/css
+            ├── WelcomePage.js/css
+            ├── GameImporter.js/css
+            ├── Questionnaire.js/css
+            ├── InteractiveCoach.js/css  # AI coach + engine line panel
+            ├── ChessExplorer.js/css     # ChessDB explorer with eval bar
+            ├── EngineTraining.js/css    # 3-line Stockfish multi-PV
+            ├── TrainVsPlayer.js/css     # vs opponent database
+            ├── CustomPosition.js/css    # FEN loader
+            └── PlayVsStockfish.js/css   # Play vs engine
 ```
 
-## Installation
+---
 
-### Backend Setup
+## Setup
 
-1. Navigate to the backend directory:
+### Backend
 
 ```bash
 cd backend
-```
-
-2. Create a Python virtual environment:
-
-```bash
 python -m venv venv
-```
 
-3. Activate the virtual environment:
-   - **Windows**:
-     ```bash
-     venv\Scripts\activate
-     ```
-   - **macOS/Linux**:
-     ```bash
-     source venv/bin/activate
-     ```
+# Windows
+venv\Scripts\activate
 
-4. Install Python dependencies:
+# macOS / Linux
+source venv/bin/activate
 
-```bash
 pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
-5. Install Stockfish engine:
-   - **Windows**: Download from [stockfishchess.org](https://stockfishchess.org) and add to PATH
-   - **macOS**: `brew install stockfish`
-   - **Linux**: `sudo apt-get install stockfish`
+API runs at `http://localhost:8000`.
 
-### Frontend Setup
-
-1. Navigate to the frontend directory:
+### Frontend
 
 ```bash
 cd frontend
-```
-
-2. Install Node dependencies:
-
-```bash
 npm install
-```
-
-## Running the Application
-
-### Start the Backend Server
-
-From the `backend` directory (with virtual environment activated):
-
-```bash
-python run.py
-```
-
-The API server will be available at `http://localhost:8000`
-
-### Start the Frontend Development Server
-
-From the `frontend` directory:
-
-```bash
 npm start
 ```
 
-The frontend will be available at `http://localhost:3000`
-
-## API Endpoints
-
-### Profile Analysis
-
-#### POST `/analyze-profile`
-
-Analyze player's games and create player profile.
-
-**Request**:
-
-```json
-{
-  "source": "chess.com" | "lichess",
-  "username": "NithilPY"
-}
-```
-
-**Response**:
-
-```json
-{
-  "total_games": 740,
-  "win_rate": 0.509,
-  "total_games_as_white": 363,
-  "total_games_as_black": 377,
-  "first_moves": {"d2d4": 447, "e2e4": 228, ...},
-  "preferred_openings": {...},
-  "eco_codes": {...}
-}
-```
-
-#### GET `/player-stats`
-
-Get the stored player profile statistics.
+App runs at `http://localhost:3000`.
 
 ---
 
-### Personalized Repertoire
+## How to use
 
-#### POST `/generate-questionnaire`
-
-Generate 5 position preference questions based on your games.
-
-**Request**:
-
-```json
-{
-  "source": "chess.com",
-  "username": "NithilPY"
-}
-```
-
-**Response**: 5 questions showing different position types and YOUR win rates:
-
-```json
-{
-  "questions": [
-    {
-      "question_id": 1,
-      "position_type_1": "Fianchetto",
-      "position_type_2": "CentralControl",
-      "description_1": "Fianchettoed bishop on long diagonal...",
-      "your_win_rate_1": "52.3%",
-      "your_win_rate_2": "48.1%"
-    }
-  ],
-  "position_types_found": 9
-}
-```
-
-#### POST `/submit-preferences`
-
-Save your position preferences and desired opening moves.
-
-**Request**:
-
-```json
-{
-  "username": "NithilPY",
-  "preferences": {
-    "Fianchetto": 5,
-    "CentralControl": 4,
-    "KingsideAttack": 4,
-    "SharpTactical": 2,
-    "ClosedPositional": 3
-  },
-  "desired_first_moves": ["c2c4", "d2d4"],
-  "color": "white"
-}
-```
-
-#### GET `/get-personalized-repertoire`
-
-Generate personalized opening lines combining your preferences and desired first moves.
-
-**Response**:
-
-```json
-{
-  "username": "NithilPY",
-  "desired_first_moves": ["c2c4", "d2d4"],
-  "preferred_position_types": [
-    "Fianchetto",
-    "CentralControl",
-    "KingsideAttack"
-  ],
-  "recommended_lines": [
-    {
-      "moves": ["c2c4", "g7g6", "g2g3", "f8g7"],
-      "opening": "English Opening / Fianchetto",
-      "position_types_reached": ["Fianchetto", "CentralControl"],
-      "outcome": "win"
-    }
-  ]
-}
-```
+1. **Import** — Enter your Chess.com or Lichess username on the import screen. The backend fetches and analyses your games.
+2. **Welcome** — Your stats dashboard loads immediately. Pick a training mode from the cards or sidebar.
+3. **AI Coach** — The first time you click AI Coach, a 5-question position-preference questionnaire runs. Your answers steer the coach engine toward openings that lead to positions you play well.
+4. **Other modes** — Chess Explorer, Engine Training, vs Player, Custom Position, and Play vs Stockfish are available instantly with no questionnaire.
 
 ---
 
-### Legacy Endpoints
+## API reference
 
-#### POST `/get-opening-positions`
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/analyze-profile` | Import games and build player profile |
+| POST | `/generate-questionnaire` | Build personalised position questions |
+| POST | `/submit-preferences` | Save style preferences |
+| POST | `/coach/lines` | Get AI coach opening recommendations |
+| GET | `/explorer/moves` | My game move frequencies at a FEN |
+| GET | `/opening-explorer` | ChessDB global move data at a FEN |
+| GET | `/opponent-moves` | Load opponent's move frequencies |
 
-Get candidate positions for a specific opening.
-
-```json
-{
-  "color": "white" | "black",
-  "first_moves": ["e2e4", "c7c5"]
-}
-```
-
-#### POST `/evaluate-position`
-
-Evaluate a chess position using Stockfish (not installed by default).
-
-```json
-{
-  "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
-}
-```
-
-## How It Works
-
-### 1. Game Analysis Phase
-
-- Import all your Chess.com/Lichess games
-- Analyze positions and calculate win rates
-- Identify "comfort zones" - positions where you consistently play well
-
-### 2. Preference Questionnaire
-
-- Answer 5 position comparison questions
-- Each question presents 2 different position types from your games
-- Rank which position structures you prefer (e.g., "Kingside Fianchetto vs Centralized Knights")
-
-### 3. Opening Move Selection
-
-- Choose which **first 1-3 moves** you want to play (to surprise opponents)
-- Specify your color preference (White or Black)
-
-### 4. Personalized Repertoire Generation
-
-The system creates a custom opening repertoire that:
-
-- **Starts with your chosen opening moves** (e.g., 1.c4 instead of 1.d4)
-- **Leads to your comfortable positions** (same position types you ranked highly)
-- **Shows your best games** as examples in these structures
-
-### 5. Study & Play
-
-- Review the recommended lines with real games from your history
-- Study successful positions from your past wins
-- Play with confidence in positions you've mastered
-
-## Usage Example
-
-### For NithilPY:
-
-1. **System analyzes NithilPY's 740 games** and finds:
-   - Comfortable positions: Kingside Fianchetto structures
-   - Strong position types: Centralized knights with space advantage
-   - Win rate: 50.95% overall
-
-2. **Questionnaire (5 questions)**:
-   - Position pair 1: "Kingside Fianchetto vs Central Control" → You prefer Fianchetto
-   - Position pair 2: "Closed Positional vs Sharp Tactical" → You prefer Closed
-   - Position pair 3: "Queenside Attack vs Kingside Attack" → You prefer Kingside
-   - Position pair 4: "Early Rooks Exchange vs Long Middlegame" → You prefer Long Middlegame
-   - Position pair 5: "Symmetrical Pawn Structure vs Asymmetrical" → You prefer Asymmetrical
-
-3. **Choose opening moves**: "I want to play `1.c4` to surprise, but reach my comfortable Fianchetto positions"
-
-4. **Personalized repertoire generated**:
-   - English Opening: 1.c4 (your surprise move)
-   - Leads to: 1.c4 g6 2.g3 (transposing to Fianchetto structures)
-   - Shows 5 of your best games reaching similar positions
-   - Evaluates recommended continuation squares
-
-5. **Study and implement**!
-
-## Future Enhancements
-
-- Interactive chessboard visualization
-- Play against the AI from selected positions
-- Create personalized opening trees
-- Track learning progress
-- Export opening repertoire as PGN
+---
 
 ## Requirements
 
-- Python 3.8+
-- Node.js 14+
-- Stockfish 14+
+- Python 3.9+
+- Node.js 18+
+- No local Stockfish install needed (runs via WASM in the browser)
+
+---
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please submit pull requests or open issues for bugs and feature requests.
-
-## Support
-
-For issues, questions, or suggestions, please open an issue on the repository.
-
----
-
-**Chess Second** - Master your openings with data from your games.
-
-#niggil

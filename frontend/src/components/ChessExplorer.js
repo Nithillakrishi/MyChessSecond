@@ -148,22 +148,24 @@ export default function ChessExplorer() {
       <div className="ce-layout">
         {/* Board column */}
         <div className="ce-board-col">
-          {/* Eval bar */}
-          <div className="ce-eval-bar-outer">
-            <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
-            <div className="ce-eval-white" style={{ height: `${whitePct}%`       }} />
-          </div>
+          {/* Eval bar + board side by side */}
+          <div className="ce-board-inner">
+            <div className="ce-eval-bar-outer">
+              <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
+              <div className="ce-eval-white" style={{ height: `${whitePct}%`       }} />
+            </div>
 
-          <div className="ce-board-wrap">
-            <Chessboard
-              position={fen}
-              onPieceDrop={onDrop}
-              boardOrientation="white"
-              customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
-              customDarkSquareStyle={{ backgroundColor: '#B58863' }}
-              customLightSquareStyle={{ backgroundColor: '#F0D9B5' }}
-              customSquareStyles={customSquareStyles}
-            />
+            <div className="ce-board-wrap">
+              <Chessboard
+                position={fen}
+                onPieceDrop={onDrop}
+                boardOrientation="white"
+                customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
+                customDarkSquareStyle={{ backgroundColor: '#B58863' }}
+                customLightSquareStyle={{ backgroundColor: '#F0D9B5' }}
+                customSquareStyles={customSquareStyles}
+              />
+            </div>
           </div>
 
           {/* Move history */}
