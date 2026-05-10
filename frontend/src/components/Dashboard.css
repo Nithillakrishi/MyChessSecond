@@ -1,0 +1,199 @@
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0 80px;
+}
+
+/* ── Greeting ── */
+.dash-greeting-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 48px 0 36px;
+  border-bottom: 2px solid var(--dark);
+  margin-bottom: 0;
+}
+
+.dash-good {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.dash-name {
+  font-size: clamp(48px, 6vw, 80px);
+  font-weight: 900;
+  color: var(--dark);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.dash-reset-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 2px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+  align-self: flex-end;
+  margin-bottom: 8px;
+}
+.dash-reset-btn:hover { border-color: var(--dark); color: var(--dark); }
+
+/* ── Stats bar ── */
+.dash-stats {
+  display: flex;
+  border-bottom: 2px solid var(--dark);
+}
+
+.dash-stat {
+  flex: 1;
+  padding: 24px 28px;
+  border-right: 2px solid var(--dark);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dash-stat:last-child { border-right: none; }
+
+.dash-stat-val {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--dark);
+  letter-spacing: -0.02em;
+}
+
+.dash-stat-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* ── Mode section heading ── */
+.dash-modes-heading {
+  padding: 20px 0 20px;
+  border-bottom: 2px solid var(--dark);
+  margin-bottom: 0;
+}
+
+.dash-modes-heading span {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+/* ── Mode grid ── */
+.dash-modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-left: 2px solid var(--dark);
+}
+
+.mode-card {
+  border-right: 2px solid var(--dark);
+  border-bottom: 2px solid var(--dark);
+  padding: 32px 28px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 220px;
+  position: relative;
+  background: var(--surface);
+}
+
+.mode-card:hover:not(.mode-soon) {
+  /* JS handles bg + border color via inline styles */
+}
+
+.mode-soon {
+  cursor: default;
+  background: #F5F5F3;
+  opacity: 0.7;
+}
+
+.mode-num {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.soon-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--border);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.mode-sub {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.mode-title {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--dark);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.mode-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  flex: 1;
+}
+
+.mode-cta {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dark);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .dash-modes { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .dash-modes { grid-template-columns: 1fr; }
+  .dash-stats { flex-direction: column; }
+  .dash-stat { border-right: none; border-bottom: 2px solid var(--dark); }
+  .dash-name { font-size: 40px; }
+  .dash-greeting-row { flex-direction: column; align-items: flex-start; gap: 16px; }
+}

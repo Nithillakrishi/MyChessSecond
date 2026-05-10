@@ -202,6 +202,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
     : {};
 
   return (
+    <div className="coach-outer">
     <div className="coach-root">
 
       {/* ── LEFT: AI Mentor ── */}
@@ -437,6 +438,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
 
       </div>{/* end right-column */}
 
+    </div>
     </div>
   );
 }

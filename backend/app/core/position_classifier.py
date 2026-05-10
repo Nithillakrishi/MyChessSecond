@@ -263,13 +263,17 @@ class PositionClassifier:
         # Sort by win rate
         sorted_types = sorted(position_types, key=lambda x: win_rates[x], reverse=True)
         
-        # Create contrasting pairs
+        # Create contrasting pairs — each type appears at most ONCE, no repeats
+        used: set = set()
         pairs = []
-        for i in range(num_pairs):
-            if i * 2 + 1 < len(sorted_types):
-                pairs.append((sorted_types[i * 2], sorted_types[i * 2 + 1]))
-            elif i < len(sorted_types):
-                # Wrap around if not enough pairs
-                pairs.append((sorted_types[i], sorted_types[(i + 1) % len(sorted_types)]))
-        
+        lo, hi = 0, len(sorted_types) - 1
+        while lo < hi and len(pairs) < num_pairs:
+            t1, t2 = sorted_types[lo], sorted_types[hi]
+            if t1 not in used and t2 not in used:
+                pairs.append((t1, t2))
+                used.add(t1)
+                used.add(t2)
+            lo += 1
+            hi -= 1
+
         return pairs[:num_pairs]
