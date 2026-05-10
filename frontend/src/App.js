@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import GameImporter from './components/GameImporter';
-import PlayerProfile from './components/PlayerProfile';
 import Questionnaire from './components/Questionnaire';
 import InteractiveCoach from './components/InteractiveCoach';
 import LandingPage, { Logo } from './components/LandingPage';
@@ -8,6 +7,8 @@ import AppLayout from './components/AppLayout';
 import WelcomePage from './components/WelcomePage';
 import PlayVsStockfish from './components/PlayVsStockfish';
 import CustomPosition from './components/CustomPosition';
+import ChessExplorer from './components/ChessExplorer';
+import EngineTraining from './components/EngineTraining';
 import TrainVsPlayer from './components/TrainVsPlayer';
 import axios from 'axios';
 import './App.css';
@@ -56,7 +57,7 @@ function App() {
         username: importedUsername,
       });
       setPlayerProfile(res.data);
-      setStep('profile');
+      setStep('app');
     } catch (err) {
       setError(err.response?.data?.detail || 'Error importing games');
     } finally {
@@ -159,19 +160,6 @@ function App() {
         </div>
       )}
 
-      {step === 'profile' && playerProfile && (
-        <div className="app-page-wrap">
-          <div className="app-page-header">
-            <div className="app-page-logo" onClick={handleReset}>
-              <Logo size={30} />
-              <span>MyChess<strong>2nd</strong></span>
-            </div>
-          </div>
-          {error && <div className="error-message" style={{ margin: '0 auto', maxWidth: 600 }}>{error}</div>}
-          <PlayerProfile profile={playerProfile} onContinue={handleProfileAccepted} onReset={handleReset} />
-        </div>
-      )}
-
       {step === 'questionnaire' && questionnaireData && (
         <div className="app-page-wrap">
           <div className="app-page-header">
@@ -216,9 +204,11 @@ function App() {
             />
           )}
 
-          {(activeMode === 'explorer' || activeMode === 'stockfish' || activeMode === 'position') && (
-            <CustomPosition />
-          )}
+          {activeMode === 'explorer' && <ChessExplorer />}
+
+          {activeMode === 'stockfish' && <EngineTraining />}
+
+          {activeMode === 'position' && <CustomPosition />}
 
           {activeMode === 'opponent' && (
             <TrainVsPlayer />

@@ -419,6 +419,64 @@
 
 .no-data-box { text-align: center; padding: 1.5rem 0.5rem; color: var(--muted); font-size: 0.8rem; }
 
+/* ── Stockfish 3-line panel ── */
+.coach-sf-panel {
+  background: var(--bg-2);
+  height: 100%;
+}
+.coach-sf-panel .panel-header h3 { color: #5B9BD5; }
+
+.coach-turn-lbl {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--muted);
+  padding: 6px 0 10px; margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.coach-sf-loading { color: var(--gold); animation: coachPulse 1s ease infinite; }
+@keyframes coachPulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+.coach-pv-list { display: flex; flex-direction: column; }
+
+.coach-pv-row {
+  display: flex; align-items: flex-start; gap: 0;
+  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.coach-pv-row:last-child { border-bottom: none; }
+.coach-pv-loading { opacity: 0.5; }
+
+.coach-pv-num {
+  width: 14px; flex-shrink: 0;
+  font-size: 9px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; margin-top: 3px; margin-right: 4px;
+}
+
+.coach-pv-eval {
+  width: 50px; flex-shrink: 0;
+  font-size: 14px; font-weight: 900;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  margin-right: 8px; margin-top: 1px;
+}
+.coach-pv-eval-white  { color: var(--cream); }
+.coach-pv-eval-black  { color: var(--muted); }
+.coach-pv-eval-neutral { color: var(--gold); }
+
+.coach-pv-moves {
+  flex: 1; font-size: 12px; line-height: 1.75;
+  display: flex; flex-wrap: wrap; align-items: baseline;
+}
+.coach-pv-movenum {
+  color: var(--muted); font-size: 10px; font-weight: 600; margin-right: 2px;
+}
+.coach-pv-movesym {
+  color: var(--cream); font-weight: 700; font-family: 'Georgia', serif;
+  margin-right: 3px; cursor: default;
+}
+
+.coach-sf-depth {
+  font-size: 10px; color: var(--muted); padding-top: 6px; font-family: monospace;
+  letter-spacing: 0.04em;
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .coach-root { grid-template-columns: 1fr; border-radius: 0; }

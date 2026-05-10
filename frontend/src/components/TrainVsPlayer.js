@@ -1,65 +1,165 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
 import './TrainVsPlayer.css';
 
 const API_BASE = 'http://localhost:8000';
-
 const SOURCES = [
   { id: 'chess.com', label: 'Chess.com' },
-  { id: 'lichess', label: 'Lichess' },
+  { id: 'lichess',   label: 'Lichess'   },
 ];
 
-export default function TrainVsPlayer() {
-  const [phase, setPhase] = useState('search'); // search | training
+/* Arrow color from frequency ratio 0..1 → dark-to-light gold/green */
+function freqToArrowColor(ratio, isMyMove) {
+  const alpha = Math.round(0.25 + ratio * 0.75, 2).toFixed(2);
+  return isMyMove
+    ? `rgba(127,166,80,${alpha})`   // green for my moves
+    : `rgba(229,139,0,${alpha})`;   // gold for opponent moves
+}
+
+/* Build arrows from move list [{san, total, ...}] */
+function buildArrows(moves, fen, isMyMove) {
+  if (!moves || moves.length === 0) return [];
+  const totalFreq = moves.reduce((s, m) => s + (m.total || 1), 0);
+  const arrows = [];
+  try {
+    for (const mv of moves.slice(0, 6)) {
+      try {
+        const tmp = new Chess(fen);
+        const result = tmp.move(mv.san);
+        if (!result) continue;
+        const ratio = (mv.total || 1) / totalFreq;
+        arrows.push([result.from, result.to, freqToArrowColor(ratio, isMyMove)]);
+      } catch { /* skip invalid */ }
+    }
+  } catch { /* invalid fen */ }
+  return arrows;
+}
+
+/* Stockfish hook — only eval bar */
+function useEvalBar() {
+  const engineRef = React.useRef(null);
+  const [score, setScore] = React.useState(0);
+
+  useEffect(() => {
+    const engine = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
+    engineRef.current = engine;
+    engine.onmessage = (e) => {
+      const line = typeof e.data === 'string' ? e.data : String(e.data);
+      if (line.startsWith('info') && line.includes('score cp')) {
+        const m = line.match(/score cp (-?\d+)/);
+        if (m) setScore(parseInt(m[1]) / 100);
+      }
+      if (line.startsWith('info') && line.includes('score mate')) {
+        const m = line.match(/score mate (-?\d+)/);
+        if (m) setScore(parseInt(m[1]) > 0 ? 99 : -99);
+      }
+    };
+    engine.postMessage('uci');
+    engine.postMessage('ucinewgame');
+    engine.postMessage('isready');
+    return () => { engine.postMessage('quit'); engine.terminate(); };
+  }, []);
+
+  const analyse = useCallback((fen) => {
+    if (!engineRef.current) return;
+    engineRef.current.postMessage('stop');
+    engineRef.current.postMessage(`position fen ${fen}`);
+    engineRef.current.postMessage('go depth 16');
+  }, []);
+
+  return { score, analyse };
+}
+
+function EvalBar({ score, playerColor, isWhiteTurn }) {
+  // score is always from side-to-move's perspective — adjust to white's perspective
+  const whiteScore = isWhiteTurn ? score : -score;
+  const whitePct = Math.min(90, Math.max(10, 50 + whiteScore * 4));
+  const displayPct = playerColor === 'white' ? whitePct : 100 - whitePct;
+  return (
+    <div className="tvp-eval-bar-outer">
+      <div className="tvp-eval-bar-fill" style={{ height: `${100 - displayPct}%` }} />
+      <div className="tvp-eval-score">{whiteScore >= 0 ? `+${whiteScore.toFixed(1)}` : whiteScore.toFixed(1)}</div>
+    </div>
+  );
+}
+
+export default function TrainVsPlayer({ username: myUsername, profile }) {
+  const [phase, setPhase] = useState('setup'); // setup | game
   const [opponentUsername, setOpponentUsername] = useState('');
   const [source, setSource] = useState('chess.com');
+  const [playerColor, setPlayerColor] = useState('white');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
   const [game, setGame] = useState(new Chess());
   const [fen, setFen] = useState(new Chess().fen());
+  const [arrows, setArrows] = useState([]);
   const [lastMove, setLastMove] = useState(null);
-  const [opponentMoves, setOpponentMoves] = useState([]);
-  const [currentOpponentMoves, setCurrentOpponentMoves] = useState([]);
   const [message, setMessage] = useState('');
-  const [playerColor] = useState('white');
   const [totalGames, setTotalGames] = useState(0);
+  const [isThinking, setIsThinking] = useState(false);
 
-  const fetchOpponentMoves = useCallback(async (currentFen, currentGame) => {
-    try {
-      const res = await axios.get(`${API_BASE}/opponent-moves`, {
-        params: { username: opponentUsername, source, fen: currentFen }
-      });
-      const moves = res.data?.moves || [];
-      setCurrentOpponentMoves(moves);
-      return moves;
-    } catch {
-      setCurrentOpponentMoves([]);
-      return [];
+  const { score, analyse } = useEvalBar();
+
+  const myColor = playerColor === 'white' ? 'w' : 'b';
+
+  /* Fetch moves from both databases and build arrows */
+  const refreshArrows = useCallback(async (currentFen, currentGame) => {
+    const isMyTurn = currentGame.turn() === myColor;
+
+    if (isMyTurn) {
+      // Show MY moves from my imported games
+      try {
+        const res = await axios.get(`${API_BASE}/explorer/moves`, { params: { fen: currentFen } });
+        const moves = (res.data?.moves || []).map(m => ({
+          san: m.san,
+          total: (m.white || 0) + (m.draws || 0) + (m.black || 0),
+        }));
+        setArrows(buildArrows(moves, currentFen, true));
+      } catch {
+        setArrows([]);
+      }
+    } else {
+      // Show OPPONENT moves
+      try {
+        const res = await axios.get(`${API_BASE}/opponent-moves`, {
+          params: { username: opponentUsername, source, fen: currentFen },
+        });
+        const moves = res.data?.moves || [];
+        setArrows(buildArrows(moves, currentFen, false));
+      } catch {
+        setArrows([]);
+      }
     }
-  }, [opponentUsername, source]);
+  }, [myColor, opponentUsername, source]);
 
-  async function handleSearch(e) {
+  /* Load opponent games to start */
+  async function handleStart(e) {
     e.preventDefault();
     if (!opponentUsername.trim()) return;
     setLoading(true);
     setError('');
     try {
       const res = await axios.get(`${API_BASE}/opponent-moves`, {
-        params: { username: opponentUsername.trim(), source, fen: new Chess().fen() }
+        params: { username: opponentUsername.trim(), source, fen: new Chess().fen() },
       });
       setTotalGames(res.data?.total_games || 0);
-      setOpponentMoves(res.data?.moves || []);
-      setCurrentOpponentMoves(res.data?.moves || []);
+      if (!res.data?.total_games) {
+        setError(`No games found for ${opponentUsername} on ${source}.`);
+        setLoading(false);
+        return;
+      }
       const g = new Chess();
       setGame(g);
       setFen(g.fen());
       setLastMove(null);
-      setMessage(res.data?.total_games
-        ? `Loaded ${res.data.total_games} games from ${opponentUsername}. Play white and see how they respond!`
-        : `No games found for ${opponentUsername} on ${source}.`);
-      setPhase('training');
+      setMessage(`Playing ${opponentUsername}'s openings. ${playerColor === 'white' ? 'You play white.' : 'You play black.'}`);
+      setPhase('game');
+      // Initial arrows
+      setTimeout(() => refreshArrows(g.fen(), g), 100);
+      analyse(g.fen());
     } catch (err) {
       setError(err.response?.data?.detail || `Could not load games for ${opponentUsername}.`);
     } finally {
@@ -67,8 +167,10 @@ export default function TrainVsPlayer() {
     }
   }
 
+  /* Player makes a move */
   async function onDrop(from, to, piece) {
-    if (game.turn() !== 'w') return false;
+    if (game.turn() !== myColor) return false;
+    if (isThinking) return false;
 
     const g = new Chess(game.fen());
     const move = g.move({ from, to, promotion: piece?.slice(-1)?.toLowerCase() || 'q' });
@@ -77,54 +179,65 @@ export default function TrainVsPlayer() {
     setGame(g);
     setFen(g.fen());
     setLastMove({ from: move.from, to: move.to });
+    setArrows([]);
     setMessage('');
+    analyse(g.fen());
 
     if (g.isGameOver()) {
       setMessage(g.isCheckmate() ? 'Checkmate!' : 'Game over.');
       return true;
     }
 
-    // Play opponent's response
+    // Opponent auto-responds
+    setIsThinking(true);
     setTimeout(async () => {
-      const moves = await fetchOpponentMoves(g.fen(), g);
-      let opponentMove = null;
+      try {
+        const res = await axios.get(`${API_BASE}/opponent-moves`, {
+          params: { username: opponentUsername, source, fen: g.fen() },
+        });
+        const moves = res.data?.moves || [];
+        let oppMove = null;
 
-      if (moves.length > 0) {
-        // Weighted random from top 3 moves
-        const top = moves.slice(0, 3);
-        const totalFreq = top.reduce((s, m) => s + (m.total || 1), 0);
-        let rand = Math.random() * totalFreq;
-        for (const m of top) {
-          rand -= (m.total || 1);
-          if (rand <= 0) { opponentMove = m.san; break; }
+        if (moves.length > 0) {
+          const top = moves.slice(0, 3);
+          const totalF = top.reduce((s, m) => s + (m.total || 1), 0);
+          let rand = Math.random() * totalF;
+          for (const m of top) {
+            rand -= (m.total || 1);
+            if (rand <= 0) { oppMove = m.san; break; }
+          }
+          if (!oppMove) oppMove = top[0].san;
         }
-        if (!opponentMove) opponentMove = top[0].san;
-      }
 
-      if (opponentMove) {
-        const g2 = new Chess(g.fen());
-        let om;
-        try {
-          // Try SAN first (backend returns SAN), fall back to UCI
-          om = g2.move(opponentMove);
-        } catch {
-          try {
-            om = g2.move({ from: opponentMove.slice(0, 2), to: opponentMove.slice(2, 4), promotion: opponentMove[4] || 'q' });
-          } catch { om = null; }
+        if (oppMove) {
+          const g2 = new Chess(g.fen());
+          let om;
+          try { om = g2.move(oppMove); } catch { om = null; }
+          if (om) {
+            setGame(g2);
+            setFen(g2.fen());
+            setLastMove({ from: om.from, to: om.to });
+            const matchMove = moves.find(m => m.san === om.san);
+            const pct = matchMove
+              ? Math.round((matchMove.total / moves.reduce((s, m) => s + m.total, 0)) * 100)
+              : null;
+            setMessage(pct
+              ? `${opponentUsername} plays ${om.san} · ${pct}% of their games`
+              : `${opponentUsername} plays ${om.san}`);
+            analyse(g2.fen());
+            if (g2.isGameOver()) setMessage(prev => prev + ' · Game over.');
+            // Show MY move arrows now
+            refreshArrows(g2.fen(), g2);
+          }
+        } else {
+          setMessage(`${opponentUsername} has no data here — you can continue freely.`);
+          refreshArrows(g.fen(), g);
         }
-        if (om) {
-          setGame(g2);
-          setFen(g2.fen());
-          setLastMove({ from: om.from, to: om.to });
-          const matchMove = moves.find(m => m.san === om.san);
-          const favMsg = matchMove
-            ? `${opponentUsername} often plays ${om.san} here (seen in ${matchMove.total} games).`
-            : `${opponentUsername} played ${om.san}.`;
-          setMessage(favMsg);
-          if (g2.isGameOver()) setMessage(prev => prev + ' Game over.');
-        }
-      } else {
-        setMessage(`${opponentUsername} has no data for this position. You can continue freely.`);
+      } catch {
+        setMessage('Could not fetch opponent move.');
+        refreshArrows(g.fen(), g);
+      } finally {
+        setIsThinking(false);
       }
     }, 400);
 
@@ -136,39 +249,46 @@ export default function TrainVsPlayer() {
     setGame(g);
     setFen(g.fen());
     setLastMove(null);
-    setCurrentOpponentMoves(opponentMoves);
-    setMessage(`Playing against ${opponentUsername}'s opening tendencies.`);
-  }
-
-  function backToSearch() {
-    setPhase('search');
-    setError('');
-    setMessage('');
+    setArrows([]);
+    setMessage(`New game. ${playerColor === 'white' ? 'You play white.' : 'You play black.'}`);
+    refreshArrows(g.fen(), g);
+    analyse(g.fen());
   }
 
   const customSquareStyles = {};
   if (lastMove) {
-    customSquareStyles[lastMove.from] = { background: 'rgba(229,139,0,0.35)' };
-    customSquareStyles[lastMove.to]   = { background: 'rgba(229,139,0,0.45)' };
+    customSquareStyles[lastMove.from] = { background: 'rgba(229,139,0,0.3)' };
+    customSquareStyles[lastMove.to]   = { background: 'rgba(229,139,0,0.4)' };
   }
 
-  /* ── Search phase ── */
-  if (phase === 'search') {
+  /* ── Setup phase ── */
+  if (phase === 'setup') {
     return (
       <div className="tvp-root">
-        <div className="tvp-search-panel">
+        <div className="tvp-setup">
           <h2 className="tvp-title">Train vs Player Database</h2>
           <p className="tvp-sub">
-            Enter any username and practice against their opening repertoire.
-            We'll fetch their games and respond with their most common moves.
+            Practice against any player's opening repertoire. Arrows show their most common moves by frequency.
           </p>
 
-          <form onSubmit={handleSearch} className="tvp-form">
+          <form onSubmit={handleStart} className="tvp-form">
+            <div className="tvp-field-label">Play as</div>
+            <div className="tvp-color-row">
+              {['white', 'black'].map(c => (
+                <button key={c} type="button"
+                  className={`tvp-color-btn ${playerColor === c ? 'tvp-color-active' : ''}`}
+                  onClick={() => setPlayerColor(c)}
+                >
+                  <span>{c === 'white' ? '♔' : '♚'}</span>
+                  {c.charAt(0).toUpperCase() + c.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="tvp-field-label">Opponent platform</div>
             <div className="tvp-source-row">
               {SOURCES.map(s => (
-                <button
-                  key={s.id}
-                  type="button"
+                <button key={s.id} type="button"
                   className={`tvp-source-btn ${source === s.id ? 'tvp-source-active' : ''}`}
                   onClick={() => setSource(s.id)}
                 >
@@ -177,6 +297,7 @@ export default function TrainVsPlayer() {
               ))}
             </div>
 
+            <div className="tvp-field-label">Opponent username</div>
             <div className="tvp-input-row">
               <input
                 className="tvp-username-input"
@@ -185,84 +306,86 @@ export default function TrainVsPlayer() {
                 placeholder="Enter username…"
                 autoFocus
               />
-              <button type="submit" className="tvp-search-btn" disabled={loading || !opponentUsername.trim()}>
+              <button type="submit" className="tvp-search-btn"
+                disabled={loading || !opponentUsername.trim()}>
                 {loading ? 'Loading…' : 'Load Games →'}
               </button>
             </div>
-
             {error && <div className="tvp-error">{error}</div>}
           </form>
 
-          <div className="tvp-how">
-            <div className="tvp-how-title">How it works</div>
-            <ul className="tvp-how-list">
-              <li>We fetch up to 100 recent games from the opponent's profile</li>
-              <li>You play as White; they respond as Black with their most common moves</li>
-              <li>See which openings they prefer and find patterns in their play</li>
-            </ul>
+          <div className="tvp-legend">
+            <div className="tvp-legend-title">Arrow guide</div>
+            <div className="tvp-legend-row">
+              <div className="tvp-legend-arrow tvp-arrow-green" />
+              <span>Your moves (from your games) — darker = more frequent</span>
+            </div>
+            <div className="tvp-legend-row">
+              <div className="tvp-legend-arrow tvp-arrow-gold" />
+              <span>Opponent moves — darker = more frequent</span>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  /* ── Training phase ── */
+  /* ── Game phase ── */
+  const isMyTurn = game.turn() === myColor;
   return (
     <div className="tvp-root">
-      <div className="tvp-training-layout">
-        {/* Board */}
+      <div className="tvp-game-layout">
+        {/* Board + eval bar */}
         <div className="tvp-board-col">
+          <EvalBar score={score} playerColor={playerColor} isWhiteTurn={game.turn() === 'w'} />
           <div className="tvp-board-wrap">
             <Chessboard
               position={fen}
               onPieceDrop={onDrop}
               boardOrientation={playerColor}
+              customArrows={arrows}
+              customArrowColor="rgba(0,0,0,0)"
               customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
               customDarkSquareStyle={{ backgroundColor: '#B58863' }}
               customLightSquareStyle={{ backgroundColor: '#F0D9B5' }}
               customSquareStyles={customSquareStyles}
             />
           </div>
-
-          {message && (
-            <div className="tvp-message">{message}</div>
-          )}
+          {message && <div className="tvp-message">{message}</div>}
         </div>
 
         {/* Side panel */}
         <div className="tvp-side">
-          <div className="tvp-opponent-card">
-            <div className="tvp-opp-avatar">
-              {opponentUsername[0]?.toUpperCase()}
-            </div>
+          <div className="tvp-opp-card">
+            <div className="tvp-opp-avatar">{opponentUsername[0]?.toUpperCase()}</div>
             <div>
               <div className="tvp-opp-name">{opponentUsername}</div>
-              <div className="tvp-opp-meta">{totalGames} games · {source}</div>
+              <div className="tvp-opp-meta">{totalGames.toLocaleString()} games · {source}</div>
             </div>
           </div>
 
-          {currentOpponentMoves.length > 0 && (
-            <div className="tvp-moves-card">
-              <div className="tvp-moves-title">Their common moves here</div>
-              <div className="tvp-moves-list">
-                {currentOpponentMoves.slice(0, 5).map((m, i) => (
-                  <div key={i} className="tvp-move-row">
-                    <span className="tvp-move-rank">{i + 1}</span>
-                    <span className="tvp-move-san">{m.san}</span>
-                    <span className="tvp-move-freq">{m.total || '?'}×</span>
-                  </div>
-                ))}
-              </div>
+          <div className="tvp-turn-card">
+            <div className={`tvp-turn-dot ${isThinking ? 'tvp-dot-opp' : isMyTurn ? 'tvp-dot-mine' : 'tvp-dot-opp'}`} />
+            <span className={isThinking ? 'tvp-thinking-lbl' : ''}>
+              {isThinking ? 'Opponent thinking…' : isMyTurn ? 'Your turn' : 'Opponent to move'}
+            </span>
+          </div>
+
+          <div className="tvp-legend-card">
+            <div className="tvp-legend-title">Arrow guide</div>
+            <div className="tvp-legend-row">
+              <div className="tvp-legend-arrow tvp-arrow-green" />
+              <span>Your moves (darker = more common)</span>
             </div>
-          )}
+            <div className="tvp-legend-row">
+              <div className="tvp-legend-arrow tvp-arrow-gold" />
+              <span>Opponent moves (darker = more common)</span>
+            </div>
+          </div>
 
           <div className="tvp-btns">
             <button className="tvp-reset-btn" onClick={resetGame}>↺ New Game</button>
-            <button className="tvp-back-btn" onClick={backToSearch}>← Change Player</button>
-          </div>
-
-          <div className="tvp-hint">
-            You play as White. The opponent responds with their most common moves from their game history.
+            <button className="tvp-back-btn" onClick={() => setPhase('setup')}>← Change Player</button>
           </div>
         </div>
       </div>
