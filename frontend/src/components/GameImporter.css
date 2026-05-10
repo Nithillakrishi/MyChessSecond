@@ -1,89 +1,99 @@
 .game-importer {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   min-height: 60vh;
-  padding: 40px 20px;
+  padding: 60px 20px;
 }
 
 .game-importer .card {
-  max-width: 500px;
+  max-width: 480px;
   width: 100%;
 }
 
 .game-importer h2 {
-  color: #2c3e50;
-  margin-bottom: 10px;
-  font-size: 24px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .game-importer > .card > p {
-  color: #7f8c8d;
-  margin-bottom: 30px;
-  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   display: flex;
   flex-direction: column;
 }
 
 .form-group label {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 500;
-  color: #2c3e50;
+  font-size: 13px;
+  color: var(--text-primary);
 }
 
 .form-group select,
 .form-group input {
-  padding: 12px;
-  border: 1px solid #bdc3c7;
-  border-radius: 6px;
-  font-size: 16px;
-  transition: all 0.3s ease;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .form-group select:focus,
 .form-group input:focus {
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(84,105,212,0.12);
+  outline: none;
 }
 
-.game-importer button {
+.game-importer button[type="submit"],
+.game-importer > .card > button:not(.btn-secondary) {
   width: 100%;
-  padding: 14px;
-  background-color: #3498db;
+  padding: 12px;
+  background: var(--accent);
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 16px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.15s, box-shadow 0.15s;
+  font-family: inherit;
 }
 
-.game-importer button:hover:not(:disabled) {
-  background-color: #2980b9;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+.game-importer button:not(.btn-secondary):hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 14px rgba(84,105,212,0.3);
 }
 
 .game-importer button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .info {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #ecf0f1;
-  border-radius: 6px;
-  border-left: 4px solid #3498db;
+  margin-top: 18px;
+  padding: 13px 15px;
+  background: #EEF2FF;
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
 }
 
 .info p {
-  color: #2c3e50;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
   margin: 0;
+  line-height: 1.5;
 }
