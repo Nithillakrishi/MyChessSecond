@@ -1,89 +1,61 @@
+/* ── Chess Classic Palette ── */
 :root {
-  --bg: #F6F9FC;
-  --surface: #FFFFFF;
-  --border: #E3E8EF;
-  --text-primary: #1A1F36;
-  --text-secondary: #697386;
-  --accent: #5469D4;
-  --accent-hover: #4254B3;
-  --success: #1A9F6E;
-  --danger: #E5424D;
-  --warning: #E07B39;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow: 0 4px 16px rgba(26,31,54,0.08);
-  --radius: 10px;
+  --bg:         #312E2B;   /* dark walnut board */
+  --bg-2:       #3D3935;
+  --bg-3:       #4A4542;
+  --cream:      #F0D9B5;   /* light squares */
+  --caramel:    #B58863;   /* dark squares / muted */
+  --green:      #7FA650;   /* lichess green */
+  --green-d:    #5C7A38;
+  --green-lt:   rgba(127,166,80,0.15);
+  --gold:       #E58B00;   /* chess.com gold */
+  --gold-d:     #B86E00;
+  --gold-lt:    rgba(229,139,0,0.15);
+  --red:        #C0392B;
+  --red-lt:     rgba(192,57,43,0.15);
+  --border:     rgba(181,136,99,0.25);
+  --border-mid: rgba(181,136,99,0.45);
+  --text:       #F0D9B5;   /* cream on dark */
+  --muted:      #B58863;   /* caramel muted */
+  --radius:     8px;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   background: var(--bg);
-  color: var(--text-primary);
+  color: var(--cream);
   min-height: 100vh;
 }
 
-code {
-  font-family: 'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
+code { font-family: 'SF Mono', Menlo, monospace; }
 
 button {
-  padding: 9px 18px;
-  background-color: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 7px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
   font-family: inherit;
-  transition: background 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
 }
-
-button:hover {
-  background-color: var(--accent-hover);
-  box-shadow: 0 2px 8px rgba(84,105,212,0.25);
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 input, select, textarea {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  font-size: 14px;
   font-family: inherit;
-  color: var(--text-primary);
-  background: var(--surface);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  font-size: 14px;
+  background: var(--bg-2);
+  color: var(--cream);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  transition: border-color 0.15s;
 }
-
+input::placeholder { color: var(--muted); }
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(84,105,212,0.12);
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-lt);
 }
-
-.card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
-  margin-bottom: 20px;
-}
+select option { background: var(--bg-2); color: var(--cream); }

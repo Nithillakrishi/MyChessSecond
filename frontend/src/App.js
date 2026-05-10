@@ -1,35 +1,41 @@
 import React, { useState } from 'react';
 import GameImporter from './components/GameImporter';
 import PlayerProfile from './components/PlayerProfile';
-import OpeningSelector from './components/OpeningSelector';
-import PositionComparison from './components/PositionComparison';
 import Questionnaire from './components/Questionnaire';
 import InteractiveCoach from './components/InteractiveCoach';
+import LandingPage, { Logo } from './components/LandingPage';
+import AppLayout from './components/AppLayout';
+import WelcomePage from './components/WelcomePage';
+import PlayVsStockfish from './components/PlayVsStockfish';
+import CustomPosition from './components/CustomPosition';
+import TrainVsPlayer from './components/TrainVsPlayer';
 import axios from 'axios';
 import './App.css';
 
 const API_BASE = 'http://localhost:8000';
 
 function App() {
-  const [currentStep, setCurrentStep] = useState('import'); // import, profile, questionnaire, repertoire
+  // Top-level step: landing | import | profile | questionnaire | app
+  const [step, setStep] = useState('landing');
+  // Active mode inside the app layout
+  const [activeMode, setActiveMode] = useState('welcome');
+
   const [playerProfile, setPlayerProfile] = useState(null);
   const [username, setUsername] = useState('');
+  const [source, setSource] = useState('chess.com');
   const [questionnaireData, setQuestionnaireData] = useState(null);
   const [repertoireData, setRepertoireData] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
 
-  // Fake progress bar for long loading states
   React.useEffect(() => {
     let interval;
     if (loading) {
       interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 95) return 95; // Stall at 95% until complete
-          return prev + Math.floor(Math.random() * 3) + 1; // Randomly add 1-3%
-        });
+        setProgress(p => (p >= 95 ? 95 : p + Math.floor(Math.random() * 3) + 1));
       }, 800);
     } else {
       setProgress(0);
@@ -37,19 +43,20 @@ function App() {
     return () => clearInterval(interval);
   }, [loading]);
 
-  const handleGameImport = async (source, importedUsername) => {
+  /* ── Import handler ── */
+  const handleGameImport = async (importedSource, importedUsername) => {
     setLoading(true);
-    setLoadingMessage(`Fetching and analyzing games for ${importedUsername}... This can take a minute for large accounts (5,000+ games).`);
+    setLoadingMessage(`Fetching games for ${importedUsername}… this can take a minute.`);
     setError(null);
     try {
       setUsername(importedUsername);
-      // Analyze player profile
-      const response = await axios.post(`${API_BASE}/analyze-profile`, {
-        source,
-        username: importedUsername
+      setSource(importedSource);
+      const res = await axios.post(`${API_BASE}/analyze-profile`, {
+        source: importedSource,
+        username: importedUsername,
       });
-      setPlayerProfile(response.data);
-      setCurrentStep('profile');
+      setPlayerProfile(res.data);
+      setStep('profile');
     } catch (err) {
       setError(err.response?.data?.detail || 'Error importing games');
     } finally {
@@ -57,32 +64,15 @@ function App() {
     }
   };
 
-  const handleDemoMode = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Load sample data for demo
-      const response = await axios.post(`${API_BASE}/test-sample`);
-      setPlayerProfile(response.data.player_profile);
-      setCurrentStep('profile');
-    } catch (err) {
-      setError('Error loading demo data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /* ── Profile accepted → generate questionnaire ── */
   const handleProfileAccepted = async () => {
     setLoading(true);
-    setLoadingMessage('Generating questionnaire based on your games...');
+    setLoadingMessage('Building your personalized questionnaire…');
     setError(null);
     try {
-      const response = await axios.post(`${API_BASE}/generate-questionnaire`, {
-        source: 'chess.com', // Assuming source doesn't strictly matter here anymore
-        username: username
-      });
-      setQuestionnaireData(response.data);
-      setCurrentStep('questionnaire');
+      const res = await axios.post(`${API_BASE}/generate-questionnaire`, { source, username });
+      setQuestionnaireData(res.data);
+      setStep('questionnaire');
     } catch (err) {
       setError(err.response?.data?.detail || 'Error generating questionnaire');
     } finally {
@@ -90,18 +80,16 @@ function App() {
     }
   };
 
+  /* ── Questionnaire submitted ── */
   const handlePreferencesSubmitted = async (preferences) => {
-    setLoadingMessage('Calculating optimal opening repertoire for your style...');
     setLoading(true);
+    setLoadingMessage('Saving your style preferences…');
     setError(null);
     try {
       await axios.post(`${API_BASE}/submit-preferences`, preferences);
-      
-      setRepertoireData({
-         preferences: preferences.preferences,
-         color: preferences.color
-      });
-      setCurrentStep('repertoire');
+      setRepertoireData({ preferences: preferences.preferences, color: preferences.color });
+      setActiveMode('coach');
+      setStep('app');
     } catch (err) {
       setError(err.response?.data?.detail || 'Error saving preferences');
     } finally {
@@ -109,8 +97,20 @@ function App() {
     }
   };
 
+  /* ── Mode selection from WelcomePage or sidebar ── */
+  const handleModeSelect = (mode) => {
+    if (mode === 'coach' && !repertoireData) {
+      // Need questionnaire first
+      handleProfileAccepted();
+      return;
+    }
+    setActiveMode(mode);
+  };
+
+  /* ── Reset ── */
   const handleReset = () => {
-    setCurrentStep('import');
+    setStep('landing');
+    setActiveMode('welcome');
     setPlayerProfile(null);
     setUsername('');
     setQuestionnaireData(null);
@@ -118,62 +118,117 @@ function App() {
     setError(null);
   };
 
+  /* ── Loading overlay ── */
+  const loadingOverlay = loading && (
+    <div className="loading-overlay">
+      <div className="loading-content">
+        <div className="spinner" />
+        <h3>{loadingMessage || 'Loading…'}</h3>
+        <div className="progress-bar-container">
+          <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+        </div>
+        <p className="progress-text">{progress}%</p>
+      </div>
+    </div>
+  );
+
+  /* ── Render ── */
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>♟ Chess <span>Second</span></h1>
-        <p>Opening Coach</p>
-      </header>
+      {loadingOverlay}
 
-      <main className="app-main">
-        {error && <div className="error-message">{error}</div>}
-        {loading && (
-          <div className="loading-overlay">
-            <div className="loading-content">
-              <div className="spinner"></div>
-              <h3>{loadingMessage || 'Loading...'}</h3>
-              <div className="progress-bar-container">
-                <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
-              </div>
-              <p className="progress-text">{progress}%</p>
+      {error && step !== 'app' && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 10000, maxWidth: 400, width: '90%' }}>
+          <div className="error-message">{error}</div>
+        </div>
+      )}
+
+      {step === 'landing' && (
+        <LandingPage onStart={() => setStep('import')} />
+      )}
+
+      {step === 'import' && (
+        <div className="app-page-wrap">
+          <div className="app-page-header">
+            <div className="app-page-logo" onClick={handleReset}>
+              <Logo size={30} />
+              <span>MyChess<strong>2nd</strong></span>
             </div>
           </div>
-        )}
+          <GameImporter onImport={handleGameImport} disabled={loading} />
+        </div>
+      )}
 
-        {currentStep === 'import' && (
-          <GameImporter onImport={handleGameImport} onDemo={handleDemoMode} disabled={loading} />
-        )}
+      {step === 'profile' && playerProfile && (
+        <div className="app-page-wrap">
+          <div className="app-page-header">
+            <div className="app-page-logo" onClick={handleReset}>
+              <Logo size={30} />
+              <span>MyChess<strong>2nd</strong></span>
+            </div>
+          </div>
+          {error && <div className="error-message" style={{ margin: '0 auto', maxWidth: 600 }}>{error}</div>}
+          <PlayerProfile profile={playerProfile} onContinue={handleProfileAccepted} onReset={handleReset} />
+        </div>
+      )}
 
-        {currentStep === 'profile' && playerProfile && (
-          <PlayerProfile
-            profile={playerProfile}
-            onContinue={handleProfileAccepted}
-            onReset={handleReset}
-          />
-        )}
-
-        {currentStep === 'questionnaire' && questionnaireData && (
-          <Questionnaire 
+      {step === 'questionnaire' && questionnaireData && (
+        <div className="app-page-wrap">
+          <div className="app-page-header">
+            <div className="app-page-logo" onClick={handleReset}>
+              <Logo size={30} />
+              <span>MyChess<strong>2nd</strong></span>
+            </div>
+          </div>
+          {error && <div className="error-message" style={{ margin: '0 auto', maxWidth: 600 }}>{error}</div>}
+          <Questionnaire
             questions={questionnaireData.questions}
             username={username}
             onSubmit={handlePreferencesSubmitted}
             disabled={loading}
           />
-        )}
+        </div>
+      )}
 
-        {currentStep === 'repertoire' && repertoireData && (
-          <InteractiveCoach 
-            username={username}
-            preferences={repertoireData.preferences}
-            color={repertoireData.color}
-            onReset={handleReset}
-          />
-        )}
-      </main>
+      {step === 'app' && (
+        <AppLayout
+          activeMode={activeMode}
+          onSelect={handleModeSelect}
+          username={username}
+          onLogout={handleReset}
+        >
+          {activeMode === 'welcome' && (
+            <WelcomePage
+              username={username}
+              profile={playerProfile}
+              onSelect={handleModeSelect}
+              questionnaireData={questionnaireData}
+            />
+          )}
 
-      <footer className="app-footer">
-        <p>Chess Second © 2026 | Powered by Stockfish & Chess.com/Lichess APIs</p>
-      </footer>
+          {activeMode === 'coach' && repertoireData && (
+            <InteractiveCoach
+              username={username}
+              preferences={repertoireData.preferences}
+              color={repertoireData.color}
+              onReset={() => setActiveMode('welcome')}
+            />
+          )}
+
+          {(activeMode === 'explorer' || activeMode === 'stockfish' || activeMode === 'position') && (
+            <CustomPosition />
+          )}
+
+          {activeMode === 'opponent' && (
+            <TrainVsPlayer />
+          )}
+
+          {activeMode === 'playvs' && (
+            <PlayVsStockfish />
+          )}
+        </AppLayout>
+      )}
+
     </div>
   );
 }

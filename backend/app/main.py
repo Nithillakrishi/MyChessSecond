@@ -472,6 +472,67 @@ async def chess_explorer(fen: str):
     return {"moves": moves[:8]}
 
 
+@app.get("/opponent-moves")
+async def opponent_moves(username: str, source: str = "chess.com", fen: str = ""):
+    """
+    Fetch an opponent's games and return their most common moves at the given FEN.
+    Used by Train vs Player mode.
+    """
+    import chess as chess_lib
+    try:
+        if source == "chess.com":
+            fetcher = ChessDotComFetcher()
+            raw = fetcher.fetch_games(username, max_games=200)
+        else:
+            fetcher = LichessFetcher()
+            raw = fetcher.fetch_games(username, max_games=200)
+
+        parser = PGNParser()
+        opp_games = parser.parse_games(raw, username)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not fetch games for {username}: {e}")
+
+    # Build move frequency at given position
+    target_key = _fen_key(fen) if fen else _fen_key(chess_lib.Board().fen())
+    is_start = target_key == _fen_key(chess_lib.Board().fen())
+    uname = username.lower().strip()
+
+    move_counts: Dict[str, Dict] = {}
+    for game in opp_games:
+        g_moves = game.get("moves", [])
+        g_positions = game.get("positions", [])
+        result = game.get("result", "*")
+        is_white = game.get("white", "").lower() == uname
+        if result == "1-0": outcome = "win" if is_white else "loss"
+        elif result == "0-1": outcome = "loss" if is_white else "win"
+        else: outcome = "draw"
+
+        next_san = None
+        if is_start and g_moves:
+            next_san = g_moves[0]
+        else:
+            for i, pfn in enumerate(g_positions):
+                if _fen_key(pfn) == target_key and i + 1 < len(g_moves):
+                    next_san = g_moves[i + 1]
+                    break
+
+        if not next_san:
+            continue
+        if next_san not in move_counts:
+            move_counts[next_san] = {"wins": 0, "draws": 0, "losses": 0}
+        move_counts[next_san][outcome + "s"] += 1
+
+    moves = []
+    for san, stats in move_counts.items():
+        total = stats["wins"] + stats["draws"] + stats["losses"]
+        win_pct = round(stats["wins"] / total * 100, 1) if total else 0
+        moves.append({"san": san, "wins": stats["wins"], "draws": stats["draws"],
+                      "losses": stats["losses"], "total": total, "win_pct": win_pct})
+
+    moves.sort(key=lambda x: x["total"], reverse=True)
+    return {"moves": moves[:10], "total_games": len(opp_games)}
+
+
 @app.on_event("startup")
 async def startup():
     """Startup event - Stockfish is optional"""
