@@ -1,4 +1,5 @@
 import React from 'react';
+import ThemePicker from './ThemePicker';
 import './LandingPage.css';
 
 /* ── Logo: bold "2nd" superscript mark ── */
@@ -47,7 +48,10 @@ export default function LandingPage({ onStart }) {
           <a href="#features">Features</a>
           <a href="#how">How it works</a>
         </div>
-        <button className="lp-nav-cta" onClick={onStart}>Get Started</button>
+        <div className="lp-nav-right">
+          <ThemePicker />
+          <button className="lp-nav-cta" onClick={onStart}>Get Started</button>
+        </div>
       </nav>
 
       {/* ── Hero ── */}

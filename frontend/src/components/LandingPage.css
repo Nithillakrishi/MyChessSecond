@@ -15,7 +15,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(49,46,43,0.85);
+  background: var(--bg-nav);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
@@ -49,6 +49,12 @@
 
 .lp-nav-links a:hover {
   color: var(--cream);
+}
+
+.lp-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .lp-nav-cta {
