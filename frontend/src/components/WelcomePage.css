@@ -25,6 +25,32 @@
 }
 .wp-tagline { font-size: 15px; color: var(--muted); position: relative; }
 
+.wp-refresh-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 6px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.wp-refresh-btn:hover {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: rgba(255, 215, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.wp-refresh-btn:active {
+  transform: translateY(0);
+}
+
 /* ── Stats section ── */
 .wp-stats-section { margin-bottom: 36px; }
 

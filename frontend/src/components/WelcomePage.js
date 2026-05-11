@@ -87,7 +87,7 @@ const MODE_CARDS = [
   { id: 'playvs',    icon: '♜', color: '#C0392B', gradient: 'linear-gradient(135deg,rgba(192,57,43,0.18) 0%,rgba(150,40,30,0.08) 100%)',   border: 'rgba(192,57,43,0.4)',   title: 'Play vs Stockfish',  desc: '5 difficulty levels.' },
 ];
 
-export default function WelcomePage({ username, profile, onSelect }) {
+export default function WelcomePage({ username, profile, onSelect, onRefresh }) {
   const wins   = profile?.wins   ?? 0;
   const draws  = profile?.draws  ?? 0;
   const losses = profile?.losses ?? 0;
@@ -117,6 +117,11 @@ export default function WelcomePage({ username, profile, onSelect }) {
         <p className="wp-hi">{getGreeting()},</p>
         <h1 className="wp-name">{username}</h1>
         <p className="wp-tagline">good to have you here. ready to level up?</p>
+        {total > 0 && onRefresh && (
+          <button onClick={onRefresh} className="wp-refresh-btn" title="Refresh data from Chess.com">
+            🔄 Refresh
+          </button>
+        )}
       </div>
 
       {total > 0 && (

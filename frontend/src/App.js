@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GameImporter from './components/GameImporter';
 import Questionnaire from './components/Questionnaire';
 import InteractiveCoach from './components/InteractiveCoach';
 import LandingPage, { Logo } from './components/LandingPage';
+import LoginPage from './components/LoginPage';
 import AppLayout from './components/AppLayout';
 import WelcomePage from './components/WelcomePage';
 import PlayVsStockfish from './components/PlayVsStockfish';
@@ -16,11 +17,12 @@ import './App.css';
 const API_BASE = 'http://localhost:8000';
 
 function App() {
-  // Top-level step: landing | import | profile | questionnaire | app
-  const [step, setStep] = useState('landing');
+  // Top-level step: login | landing | import | profile | questionnaire | app
+  const [step, setStep] = useState('login');
   // Active mode inside the app layout
   const [activeMode, setActiveMode] = useState('welcome');
 
+  const [loggedInUser, setLoggedInUser] = useState(null);
   const [playerProfile, setPlayerProfile] = useState(null);
   const [username, setUsername] = useState('');
   const [source, setSource] = useState('chess.com');
@@ -31,6 +33,15 @@ function App() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
+
+  // Check if user is logged in on mount
+  useEffect(() => {
+    const savedUsername = localStorage.getItem('username');
+    if (savedUsername) {
+      setLoggedInUser(savedUsername);
+      setStep('landing');
+    }
+  }, []);
 
   React.useEffect(() => {
     let interval;
@@ -43,6 +54,32 @@ function App() {
     }
     return () => clearInterval(interval);
   }, [loading]);
+
+  /* ── Login handler ── */
+  const handleLoginSuccess = (username) => {
+    setLoggedInUser(username);
+    setStep('landing');
+  };
+
+  /* ── Refresh data handler ── */
+  const handleRefreshData = async () => {
+    if (!loggedInUser || !username) return;
+    
+    setLoading(true);
+    setLoadingMessage(`Refreshing games for ${username}…`);
+    setError(null);
+    try {
+      const res = await axios.post(`${API_BASE}/analyze-profile`, {
+        source: source,
+        username: username,
+      });
+      setPlayerProfile(res.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error refreshing games');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /* ── Import handler ── */
   const handleGameImport = async (importedSource, importedUsername) => {
@@ -82,13 +119,30 @@ function App() {
   };
 
   /* ── Questionnaire submitted ── */
-  const handlePreferencesSubmitted = async (preferences) => {
+  const handlePreferencesSubmitted = async (questionnaire_response) => {
     setLoading(true);
-    setLoadingMessage('Saving your style preferences…');
+    setLoadingMessage('Saving your position preferences…');
     setError(null);
     try {
-      await axios.post(`${API_BASE}/submit-preferences`, preferences);
-      setRepertoireData({ preferences: preferences.preferences, color: preferences.color });
+      // Convert selected_positions array to preferences dict
+      // Selected positions get score of 5, unselected get 1
+      const preferences = {};
+      if (questionnaireData && questionnaireData.position_types_with_stats) {
+        questionnaireData.position_types_with_stats.forEach(item => {
+          preferences[item.position_type] = 
+            questionnaire_response.selected_positions.includes(item.position_type) ? 5 : 1;
+        });
+      }
+      
+      // Send in backend-expected format
+      const payload = {
+        username: questionnaire_response.username,
+        preferences: preferences,
+        color: questionnaire_response.color
+      };
+      
+      await axios.post(`${API_BASE}/submit-preferences`, payload);
+      setRepertoireData({ preferences, color: payload.color });
       setActiveMode('coach');
       setStep('app');
     } catch (err) {
@@ -110,7 +164,10 @@ function App() {
 
   /* ── Reset ── */
   const handleReset = () => {
-    setStep('landing');
+    localStorage.removeItem('username');
+    localStorage.removeItem('token');
+    setLoggedInUser(null);
+    setStep('login');
     setActiveMode('welcome');
     setPlayerProfile(null);
     setUsername('');
@@ -144,6 +201,10 @@ function App() {
         </div>
       )}
 
+      {step === 'login' && (
+        <LoginPage onLoginSuccess={handleLoginSuccess} />
+      )}
+
       {step === 'landing' && (
         <LandingPage onStart={() => setStep('import')} />
       )}
@@ -172,6 +233,7 @@ function App() {
           <Questionnaire
             questions={questionnaireData.questions}
             positionTypes={questionnaireData.position_types}
+            positionTypesWithStats={questionnaireData.position_types_with_stats}
             username={username}
             onSubmit={handlePreferencesSubmitted}
             disabled={loading}
@@ -192,6 +254,7 @@ function App() {
               profile={playerProfile}
               onSelect={handleModeSelect}
               questionnaireData={questionnaireData}
+              onRefresh={handleRefreshData}
             />
           )}
 

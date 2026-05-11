@@ -77,80 +77,120 @@ const TYPE_LABELS = {
   PawnBreakthrough: 'Pawn Breakthrough',
 };
 
-function PositionCard({ posType, winRate, label, onClick }) {
-  const fen = POSITION_FENS[posType] || POSITION_FENS.Mixed;
-  return (
-    <div className="option-card" onClick={onClick}>
-      <div className="option-label">{label}</div>
-      <div className="option-board">
-        <Chessboard
-          position={fen}
-          boardWidth={190}
-          arePiecesDraggable={false}
-          areArrowsAllowed={false}
-          animationDuration={0}
-        />
-      </div>
-      <div className="option-type">{TYPE_LABELS[posType] || posType}</div>
-      <div className="stat">Your win rate: {winRate}</div>
-    </div>
-  );
-}
-
 function Questionnaire({ questions, onSubmit, disabled, username, positionTypes, positionTypesWithStats }) {
   const [color, setColor] = useState('white');
+  const [selectedPositions, setSelectedPositions] = useState({});
+  
+  // Initialize: Auto-recommend top 3 positions by win rate
+  React.useEffect(() => {
+    if (!positionTypesWithStats || positionTypesWithStats.length === 0) return;
+    
+    // Sort by win rate (highest first)
+    const sorted = [...positionTypesWithStats].sort((a, b) => {
+      const aWinRate = parseFloat(a.win_rate.replace('%', '')) || 0;
+      const bWinRate = parseFloat(b.win_rate.replace('%', '')) || 0;
+      return bWinRate - aWinRate;
+    });
+    
+    const init = {};
+    positionTypesWithStats.forEach((item) => {
+      init[item.position_type] = false;
+    });
+    
+    // Auto-select top 3
+    sorted.slice(0, 3).forEach(item => {
+      init[item.position_type] = true;
+    });
+    
+    setSelectedPositions(init);
+  }, [positionTypesWithStats]);
 
-  // Get all position types and their stats
   const allPositionTypesWithStats = positionTypesWithStats || [];
+
+  const handlePositionToggle = (posType) => {
+    setSelectedPositions(prev => ({
+      ...prev,
+      [posType]: !prev[posType]
+    }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Create preferences based on all position types - default to 3 (neutral) for all
-    const preferences = {};
-    allPositionTypesWithStats.forEach(item => {
-      preferences[item.position_type] = 3; // Default neutral preference
-    });
-    onSubmit({ username, preferences, color });
+    const selected = Object.keys(selectedPositions).filter(pos => selectedPositions[pos]);
+    onSubmit({ username, selected_positions: selected, color });
   };
+
+  // Sort positions by win rate for display
+  const sortedByWinRate = [...allPositionTypesWithStats].sort((a, b) => {
+    const aWinRate = parseFloat(a.win_rate.replace('%', '')) || 0;
+    const bWinRate = parseFloat(b.win_rate.replace('%', '')) || 0;
+    return bWinRate - aWinRate;
+  });
 
   return (
     <div className="questionnaire-card">
-      <h2>Your Position Type Win Rates</h2>
-      <p className="hint-text">Here are your win rates across different position types from your game history</p>
+      <h2>Pick Positions to Focus On</h2>
+      <p className="hint-text">Based on your game history, we've recommended the 3 positions where you perform best. You can customize the selection below.</p>
 
-      <div className="win-rate-grid">
-        {allPositionTypesWithStats.map(item => (
-          <div key={item.position_type} className="win-rate-card">
-            <div className="position-preview">
-              <Chessboard
-                position={POSITION_FENS[item.position_type] || POSITION_FENS.Mixed}
-                boardWidth={140}
-                arePiecesDraggable={false}
-                areArrowsAllowed={false}
-                animationDuration={0}
-              />
-            </div>
-            <div className="position-name">{TYPE_LABELS[item.position_type] || item.position_type}</div>
-            <div className="win-rate-display">
-              <div className="win-rate-percentage">{item.win_rate}</div>
-              <div className="win-rate-details">
-                {item.wins}W - {item.losses}L - {item.draws}D ({item.total_games} games)
+      <div className="positions-grid">
+        {sortedByWinRate.map((item, idx) => {
+          const isRecommended = idx < 3;
+          const isSelected = selectedPositions[item.position_type];
+          
+          return (
+            <div 
+              key={item.position_type} 
+              className={`position-card ${isSelected ? 'selected' : ''} ${isRecommended ? 'recommended' : ''}`}
+              onClick={() => handlePositionToggle(item.position_type)}
+            >
+              {isRecommended && <div className="recommended-badge">⭐ RECOMMENDED</div>}
+              
+              <div className="position-checkbox">
+                <input
+                  type="checkbox"
+                  checked={isSelected || false}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handlePositionToggle(item.position_type);
+                  }}
+                  disabled={disabled}
+                />
+              </div>
+              
+              <div className="position-board-small">
+                <Chessboard
+                  position={POSITION_FENS[item.position_type] || POSITION_FENS.Mixed}
+                  boardWidth={120}
+                  arePiecesDraggable={false}
+                  areArrowsAllowed={false}
+                  animationDuration={0}
+                />
+              </div>
+              
+              <div className="position-details">
+                <div className="position-name">{TYPE_LABELS[item.position_type] || item.position_type}</div>
+                <div className="position-description">{item.description}</div>
+                <div className="win-rate-section">
+                  <div className="win-rate-big">{item.win_rate}</div>
+                  <div className="win-rate-stats">{item.wins}W • {item.draws}D • {item.losses}L</div>
+                  <div className="game-count">{item.total_games} games</div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <form onSubmit={handleSubmit} className="preferences-form">
         <div className="form-group">
-          <label>Color you want to play:</label>
+          <label>Which color do you prefer to train with?</label>
           <select value={color} onChange={e => setColor(e.target.value)} disabled={disabled}>
-            <option value="white">White</option>
-            <option value="black">Black</option>
+            <option value="white">White (move first)</option>
+            <option value="black">Black (respond first)</option>
           </select>
         </div>
         <button type="submit" className="submit-btn" disabled={disabled}>
-          Enter Interactive Coach
+          ➜ Start Interactive Coach with My Preferences
         </button>
       </form>
     </div>

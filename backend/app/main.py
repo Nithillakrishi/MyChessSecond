@@ -1030,6 +1030,30 @@ async def get_personalized_repertoire():
         print(f"Error generating repertoire: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
+@app.post("/register")
+async def register(request: FetchGamesRequest):
+    """Register a new user"""
+    from app.database import register_user
+    
+    username = request.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username cannot be empty")
+    
+    result = register_user(username)
+    return result
+
+@app.post("/login")
+async def login(request: FetchGamesRequest):
+    """Login user"""
+    from app.database import register_user
+    
+    username = request.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username cannot be empty")
+    
+    result = register_user(username)  # Register or get existing
+    return result
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
