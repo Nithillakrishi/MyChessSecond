@@ -508,9 +508,9 @@ async def opponent_moves(username: str, source: str = "chess.com", fen: str = ""
         g_positions = game.get("positions", [])
         result = game.get("result", "*")
         is_white = game.get("white", "").lower() == uname
-        if result == "1-0": outcome = "win" if is_white else "loss"
-        elif result == "0-1": outcome = "loss" if is_white else "win"
-        else: outcome = "draw"
+        if result == "1-0": outcome = "wins" if is_white else "losses"
+        elif result == "0-1": outcome = "losses" if is_white else "wins"
+        else: outcome = "draws"
 
         next_san = None
         if is_start and g_moves:
@@ -525,7 +525,7 @@ async def opponent_moves(username: str, source: str = "chess.com", fen: str = ""
             continue
         if next_san not in move_counts:
             move_counts[next_san] = {"wins": 0, "draws": 0, "losses": 0}
-        move_counts[next_san][outcome + "s"] += 1
+        move_counts[next_san][outcome] += 1
 
     moves = []
     for san, stats in move_counts.items():
