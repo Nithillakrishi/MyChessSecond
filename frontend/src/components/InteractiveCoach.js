@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
+import { useBoardColors } from '../contexts/ThemeContext';
 import './InteractiveCoach.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -170,6 +171,7 @@ function WinBar({ wins, draws, losses }) {
 
 // ── Main component ────────────────────────────────────────────────────────
 export default function InteractiveCoach({ username, preferences, color, onReset }) {
+  const { dark: boardDark, light: boardLight } = useBoardColors();
   const [game, setGame] = useState(new Chess());
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [mentorData, setMentorData] = useState(null);
@@ -364,6 +366,8 @@ export default function InteractiveCoach({ username, preferences, color, onReset
             boardOrientation={color || 'white'}
             boardWidth={400}
             customSquareStyles={customSquareStyles}
+            customDarkSquareStyle={{ backgroundColor: boardDark }}
+            customLightSquareStyle={{ backgroundColor: boardLight }}
             animationDuration={150}
           />
         </div>

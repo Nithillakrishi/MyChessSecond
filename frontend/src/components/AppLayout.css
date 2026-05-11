@@ -2,13 +2,14 @@
   display: flex;
   min-height: 100vh;
   background: var(--bg);
+  background-attachment: fixed;
 }
 
 /* ── Sidebar ── */
 .al-sidebar {
   width: 220px;
   min-width: 220px;
-  background: var(--bg-2);
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -258,6 +259,7 @@
   overflow-y: auto;
   height: 100vh;
   transition: none;
+  background: transparent;
 }
 
 /* ── Responsive ── */

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
+import { useBoardColors } from '../contexts/ThemeContext';
 import './TrainVsPlayer.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -86,6 +87,7 @@ function EvalBar({ score, playerColor, isWhiteTurn }) {
 }
 
 export default function TrainVsPlayer({ username: myUsername, source: mySource, profile }) {
+  const { dark: boardDark, light: boardLight } = useBoardColors();
   const [phase, setPhase] = useState('setup'); // setup | game
   const [opponentUsername, setOpponentUsername] = useState('');
   const [oppSource, setOppSource] = useState('chess.com');
@@ -364,8 +366,8 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource, 
               customArrows={arrows}
               customArrowColor="rgba(0,0,0,0)"
               customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
-              customDarkSquareStyle={{ backgroundColor: '#B58863' }}
-              customLightSquareStyle={{ backgroundColor: '#F0D9B5' }}
+              customDarkSquareStyle={{ backgroundColor: boardDark }}
+              customLightSquareStyle={{ backgroundColor: boardLight }}
               customSquareStyles={customSquareStyles}
             />
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
+import { useBoardColors } from '../contexts/ThemeContext';
 import './ChessExplorer.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -43,6 +44,7 @@ function useEval() {
 }
 
 export default function ChessExplorer() {
+  const { dark: boardDark, light: boardLight } = useBoardColors();
   const [game, setGame]             = useState(new Chess());
   const [fen, setFen]               = useState(new Chess().fen());
   const [lastMove, setLastMove]     = useState(null);
@@ -161,8 +163,8 @@ export default function ChessExplorer() {
                 onPieceDrop={onDrop}
                 boardOrientation="white"
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
-                customDarkSquareStyle={{ backgroundColor: '#B58863' }}
-                customLightSquareStyle={{ backgroundColor: '#F0D9B5' }}
+                customDarkSquareStyle={{ backgroundColor: boardDark }}
+                customLightSquareStyle={{ backgroundColor: boardLight }}
                 customSquareStyles={customSquareStyles}
               />
             </div>

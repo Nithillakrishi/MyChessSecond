@@ -1,4 +1,4 @@
-.app { min-height: 100vh; background: var(--bg); }
+.app { min-height: 100vh; background: var(--bg); background-attachment: fixed; }
 
 /* ── Intermediate pages (import / profile / questionnaire) ── */
 .app-page-wrap {
@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  background-attachment: fixed;
 }
 
 .app-page-header {

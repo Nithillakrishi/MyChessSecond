@@ -58,7 +58,7 @@
 }
 
 .lp-nav-cta {
-  background: var(--green);
+  background: var(--btn-grad);
   color: #fff;
   border: none;
   padding: 10px 22px;
@@ -66,11 +66,12 @@
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition: opacity 0.15s, transform 0.1s;
+  box-shadow: 0 2px 12px var(--btn-glow);
 }
 
 .lp-nav-cta:hover {
-  background: var(--green-d);
+  opacity: 0.88;
   transform: translateY(-1px);
 }
 
@@ -160,7 +161,7 @@
 }
 
 .lp-btn-primary {
-  background: linear-gradient(135deg, var(--green) 0%, var(--green-d) 100%);
+  background: var(--btn-grad);
   color: #fff;
   border: none;
   padding: 14px 32px;
@@ -169,12 +170,12 @@
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
-  box-shadow: 0 4px 20px rgba(127,166,80,0.35);
+  box-shadow: 0 4px 20px var(--btn-glow);
 }
 
 .lp-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(127,166,80,0.45);
+  box-shadow: 0 8px 30px var(--btn-glow);
 }
 
 .lp-btn-ghost {
@@ -397,7 +398,7 @@
 .lp-step-n {
   font-size: 48px;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--green) 0%, var(--gold) 100%);
+  background: var(--btn-grad);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

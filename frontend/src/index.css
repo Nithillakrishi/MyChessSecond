@@ -1,138 +1,219 @@
-/* ───────────────────────────────────────────────
-   THEME 1 — CLASSIC  (dark wood & cream, default)
-─────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   THEME 1 — CLASSIC WOOD
+   Warm walnut darks  ·  Amber + Olive Green  (warm-split)
+═══════════════════════════════════════════════════════════ */
 :root,
 [data-theme="classic"] {
-  --bg:         #312E2B;
-  --bg-2:       #3D3935;
-  --bg-3:       #4A4542;
-  --bg-nav:     rgba(49,46,43,0.88);
+  /* Rich dark walnut — clearly warm brown, not black */
+  --bg:         linear-gradient(160deg, #1E1A15 0%, #2A2118 50%, #221D15 100%);
+  --bg-solid:   #2A2118;
+  --bg-2:       #322820;
+  --bg-3:       #3E3228;
+  --bg-nav:     rgba(42,33,24,0.92);
+
   --cream:      #F0D9B5;
-  --caramel:    #B58863;
-  --muted:      #B58863;
+  --caramel:    #C49A6C;
+  --muted:      #9A7A54;
+
+  /* Primary accent = Olive Green */
   --green:      #7FA650;
   --green-d:    #5C7A38;
-  --green-lt:   rgba(127,166,80,0.15);
+  --green-lt:   rgba(127,166,80,0.18);
+
+  /* Secondary accent = Amber (warm complement) */
   --gold:       #E58B00;
   --gold-d:     #B86E00;
-  --gold-lt:    rgba(229,139,0,0.15);
-  --red:        #C0392B;
-  --red-lt:     rgba(192,57,43,0.15);
-  --border:     rgba(181,136,99,0.25);
-  --border-mid: rgba(181,136,99,0.45);
-  --radius:     8px;
-  /* semantic data colors — same in all themes */
-  --win:        #7FA650;
-  --draw:       #E58B00;
-  --loss:       #C0392B;
-}
+  --gold-lt:    rgba(229,139,0,0.18);
 
-/* ───────────────────────────────────────────────
-   THEME 2 — CRIMSON  (deep red & white)
-─────────────────────────────────────────────── */
-[data-theme="crimson"] {
-  --bg:         #160A0C;
-  --bg-2:       #200D10;
-  --bg-3:       #2B1215;
-  --bg-nav:     rgba(22,10,12,0.90);
-  --cream:      #F9EAEC;
-  --caramel:    #D49098;
-  --muted:      #C07888;
-  --green:      #E53E4D;
-  --green-d:    #C02035;
-  --green-lt:   rgba(229,62,77,0.18);
-  --gold:       #FF8A98;
-  --gold-d:     #E05060;
-  --gold-lt:    rgba(255,138,152,0.18);
   --red:        #C0392B;
   --red-lt:     rgba(192,57,43,0.18);
-  --border:     rgba(200,80,100,0.22);
-  --border-mid: rgba(200,80,100,0.44);
-  --radius:     8px;
-  --win:        #7FA650;
-  --draw:       #E58B00;
-  --loss:       #C0392B;
+
+  --border:     rgba(196,154,108,0.22);
+  --border-mid: rgba(196,154,108,0.44);
+
+  /* Gradient button */
+  --btn-grad:   linear-gradient(135deg, #7FA650 0%, #5C7A38 100%);
+  --btn-glow:   rgba(127,166,80,0.38);
+
+  /* Sidebar gradient */
+  --sidebar-bg: linear-gradient(180deg, #2E2418 0%, #271F15 100%);
+
+  --radius: 8px;
+  --win:    #7FA650;
+  --draw:   #E58B00;
+  --loss:   #C0392B;
 }
 
-/* ───────────────────────────────────────────────
-   THEME 3 — OCEAN  (deep navy & cyan)
-─────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   THEME 2 — SCARLET & GOLD
+   Deep crimson  ·  Vivid Red + Bright Gold  (warm complementary)
+═══════════════════════════════════════════════════════════ */
+[data-theme="crimson"] {
+  /* Deep burgundy — visibly red, not black */
+  --bg:         linear-gradient(160deg, #1A0508 0%, #250A0C 50%, #1C0608 100%);
+  --bg-solid:   #250A0C;
+  --bg-2:       #2E0C10;
+  --bg-3:       #3C1015;
+  --bg-nav:     rgba(37,10,12,0.94);
+
+  --cream:      #FAF0E0;
+  --caramel:    #D4A060;
+  --muted:      #A07040;
+
+  /* Primary accent = Vivid Crimson Red */
+  --green:      #E53E3E;
+  --green-d:    #C02828;
+  --green-lt:   rgba(229,62,62,0.20);
+
+  /* Secondary accent = Bright Gold (complement to red) */
+  --gold:       #F4C430;
+  --gold-d:     #D4A010;
+  --gold-lt:    rgba(244,196,48,0.20);
+
+  --red:        #E53E3E;
+  --red-lt:     rgba(229,62,62,0.18);
+
+  --border:     rgba(229,62,62,0.20);
+  --border-mid: rgba(244,196,48,0.35);
+
+  --btn-grad:   linear-gradient(135deg, #E53E3E 0%, #C02828 100%);
+  --btn-glow:   rgba(229,62,62,0.40);
+
+  --sidebar-bg: linear-gradient(180deg, #2D0C10 0%, #220810 100%);
+
+  --radius: 8px;
+  --win:    #7FA650;
+  --draw:   #E58B00;
+  --loss:   #C0392B;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THEME 3 — NAVY & FLAME
+   Midnight blue  ·  Vivid Cyan-Blue + Warm Orange  (true complementary)
+═══════════════════════════════════════════════════════════ */
 [data-theme="ocean"] {
-  --bg:         #080F1C;
-  --bg-2:       #0D1830;
-  --bg-3:       #122040;
-  --bg-nav:     rgba(8,15,28,0.90);
-  --cream:      #DDEEFF;
-  --caramel:    #6A9EBE;
-  --muted:      #5A8EAE;
-  --green:      #22D3EE;
-  --green-d:    #06B6D4;
-  --green-lt:   rgba(34,211,238,0.15);
-  --gold:       #38BDF8;
-  --gold-d:     #0EA5E9;
-  --gold-lt:    rgba(56,189,248,0.15);
+  /* Midnight navy — clearly deep blue, not black */
+  --bg:         linear-gradient(160deg, #080F22 0%, #0E1A38 50%, #0A1428 100%);
+  --bg-solid:   #0E1A38;
+  --bg-2:       #122040;
+  --bg-3:       #1A2D54;
+  --bg-nav:     rgba(14,26,56,0.94);
+
+  --cream:      #E8F4FF;
+  --caramel:    #7AAAC8;
+  --muted:      #5A8AAA;
+
+  /* Primary accent = Vivid Cyan-Blue */
+  --green:      #0EA5E9;
+  --green-d:    #0284C7;
+  --green-lt:   rgba(14,165,233,0.18);
+
+  /* Secondary accent = Bright Orange (true complement to blue!) */
+  --gold:       #F97316;
+  --gold-d:     #EA6000;
+  --gold-lt:    rgba(249,115,22,0.20);
+
   --red:        #F87171;
-  --red-lt:     rgba(248,113,113,0.15);
-  --border:     rgba(34,211,238,0.18);
-  --border-mid: rgba(34,211,238,0.36);
-  --radius:     8px;
-  --win:        #7FA650;
-  --draw:       #E58B00;
-  --loss:       #C0392B;
+  --red-lt:     rgba(248,113,113,0.18);
+
+  --border:     rgba(14,165,233,0.22);
+  --border-mid: rgba(249,115,22,0.38);
+
+  --btn-grad:   linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%);
+  --btn-glow:   rgba(14,165,233,0.40);
+
+  --sidebar-bg: linear-gradient(180deg, #102240 0%, #0C1A34 100%);
+
+  --radius: 8px;
+  --win:    #7FA650;
+  --draw:   #E58B00;
+  --loss:   #C0392B;
 }
 
-/* ───────────────────────────────────────────────
-   THEME 4 — OBSIDIAN  (pure black & gold)
-─────────────────────────────────────────────── */
-[data-theme="obsidian"] {
-  --bg:         #080808;
-  --bg-2:       #101010;
-  --bg-3:       #181818;
-  --bg-nav:     rgba(8,8,8,0.92);
-  --cream:      #E8E4DC;
-  --caramel:    #8A8070;
-  --muted:      #7A7060;
-  --green:      #C8A84B;
-  --green-d:    #A88A2A;
-  --green-lt:   rgba(200,168,75,0.15);
-  --gold:       #D4AF37;
-  --gold-d:     #B8960A;
-  --gold-lt:    rgba(212,175,55,0.15);
-  --red:        #D05050;
-  --red-lt:     rgba(208,80,80,0.15);
-  --border:     rgba(200,168,75,0.18);
-  --border-mid: rgba(200,168,75,0.38);
-  --radius:     8px;
-  --win:        #7FA650;
-  --draw:       #E58B00;
-  --loss:       #C0392B;
+/* ═══════════════════════════════════════════════════════════
+   THEME 4 — VIOLET & LIME
+   Deep violet  ·  Vivid Purple + Bright Lime  (true complementary)
+═══════════════════════════════════════════════════════════ */
+[data-theme="violet"] {
+  /* Rich violet darks — clearly purple, not black */
+  --bg:         linear-gradient(160deg, #0E0520 0%, #180A30 50%, #12062A 100%);
+  --bg-solid:   #180A30;
+  --bg-2:       #1E0E38;
+  --bg-3:       #28144A;
+  --bg-nav:     rgba(24,10,48,0.94);
+
+  --cream:      #F0E8FF;
+  --caramel:    #A87ED4;
+  --muted:      #8860B0;
+
+  /* Primary accent = Vivid Violet */
+  --green:      #7C3AED;
+  --green-d:    #6028C8;
+  --green-lt:   rgba(124,58,237,0.20);
+
+  /* Secondary accent = Bright Lime (true complement to violet!) */
+  --gold:       #A3E635;
+  --gold-d:     #84CC16;
+  --gold-lt:    rgba(163,230,53,0.20);
+
+  --red:        #F472B6;
+  --red-lt:     rgba(244,114,182,0.18);
+
+  --border:     rgba(124,58,237,0.24);
+  --border-mid: rgba(163,230,53,0.38);
+
+  --btn-grad:   linear-gradient(135deg, #7C3AED 0%, #6028C8 100%);
+  --btn-glow:   rgba(124,58,237,0.42);
+
+  --sidebar-bg: linear-gradient(180deg, #200E3C 0%, #180A30 100%);
+
+  --radius: 8px;
+  --win:    #7FA650;
+  --draw:   #E58B00;
+  --loss:   #C0392B;
 }
 
-/* ───────────────────────────────────────────────
-   THEME 5 — EMERALD  (forest green & lime)
-─────────────────────────────────────────────── */
-[data-theme="emerald"] {
-  --bg:         #061210;
-  --bg-2:       #0A1A17;
-  --bg-3:       #102320;
-  --bg-nav:     rgba(6,18,16,0.90);
-  --cream:      #D4F5EC;
-  --caramel:    #5EAD90;
-  --muted:      #4E9880;
-  --green:      #10B981;
-  --green-d:    #059669;
-  --green-lt:   rgba(16,185,129,0.15);
-  --gold:       #34D399;
-  --gold-d:     #10B981;
-  --gold-lt:    rgba(52,211,153,0.15);
-  --red:        #EF4444;
-  --red-lt:     rgba(239,68,68,0.15);
-  --border:     rgba(52,211,153,0.2);
-  --border-mid: rgba(52,211,153,0.4);
-  --radius:     8px;
-  --win:        #7FA650;
-  --draw:       #E58B00;
-  --loss:       #C0392B;
+/* ═══════════════════════════════════════════════════════════
+   THEME 5 — TEAL & CORAL
+   Forest teal  ·  Vivid Teal + Hot Coral  (true complementary)
+═══════════════════════════════════════════════════════════ */
+[data-theme="teal"] {
+  /* Deep forest teal — clearly teal-green, not black */
+  --bg:         linear-gradient(160deg, #051815 0%, #082420 50%, #061C18 100%);
+  --bg-solid:   #082420;
+  --bg-2:       #0C2C26;
+  --bg-3:       #123A32;
+  --bg-nav:     rgba(8,36,32,0.94);
+
+  --cream:      #D4F5EE;
+  --caramel:    #5EC4A8;
+  --muted:      #3EA888;
+
+  /* Primary accent = Vivid Teal */
+  --green:      #0D9488;
+  --green-d:    #0A7068;
+  --green-lt:   rgba(13,148,136,0.20);
+
+  /* Secondary accent = Hot Coral (true complement to teal!) */
+  --gold:       #FB7185;
+  --gold-d:     #E85070;
+  --gold-lt:    rgba(251,113,133,0.20);
+
+  --red:        #F97316;
+  --red-lt:     rgba(249,115,22,0.18);
+
+  --border:     rgba(13,148,136,0.24);
+  --border-mid: rgba(251,113,133,0.40);
+
+  --btn-grad:   linear-gradient(135deg, #0D9488 0%, #0A7068 100%);
+  --btn-glow:   rgba(13,148,136,0.40);
+
+  --sidebar-bg: linear-gradient(180deg, #0E302A 0%, #082420 100%);
+
+  --radius: 8px;
+  --win:    #7FA650;
+  --draw:   #E58B00;
+  --loss:   #C0392B;
 }
 
 /* ── Base reset ── */
@@ -145,7 +226,7 @@ body {
   background: var(--bg);
   color: var(--cream);
   min-height: 100vh;
-  transition: background 0.25s, color 0.25s;
+  transition: background 0.35s, color 0.25s;
 }
 
 code { font-family: 'SF Mono', Menlo, monospace; }

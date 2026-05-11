@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import { useBoardColors } from '../contexts/ThemeContext';
 import './PlayVsStockfish.css';
 
 const LEVELS = [
@@ -53,6 +54,7 @@ function useStockfishEngine() {
 }
 
 export default function PlayVsStockfish() {
+  const { dark: boardDark, light: boardLight } = useBoardColors();
   const [phase, setPhase] = useState('setup'); // setup | game | over
   const [playerColor, setPlayerColor] = useState('white');
   const [levelIdx, setLevelIdx] = useState(1);
@@ -269,8 +271,8 @@ export default function PlayVsStockfish() {
               onPieceDrop={onDrop}
               boardOrientation={playerColor}
               customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
-              customDarkSquareStyle={{ backgroundColor: '#B58863' }}
-              customLightSquareStyle={{ backgroundColor: '#F0D9B5' }}
+              customDarkSquareStyle={{ backgroundColor: boardDark }}
+              customLightSquareStyle={{ backgroundColor: boardLight }}
               customSquareStyles={customSquareStyles}
               areArrowsAllowed={false}
             />
