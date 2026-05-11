@@ -482,13 +482,18 @@ async def opponent_moves(username: str, source: str = "chess.com", fen: str = ""
     try:
         if source == "chess.com":
             fetcher = ChessDotComFetcher()
-            raw = fetcher.fetch_games(username, max_games=200)
+            raw = fetcher.get_games(username, max_archives=6)
         else:
             fetcher = LichessFetcher()
-            raw = fetcher.fetch_games(username, max_games=200)
+            raw = fetcher.get_games(username, max_games=200)
 
-        parser = PGNParser()
-        opp_games = parser.parse_games(raw, username)
+        if not raw:
+            raise HTTPException(status_code=404, detail=f"No games found for {username} on {source}.")
+
+        games_raw = PGNParser.parse_pgn(raw)
+        opp_games = [PGNParser.extract_opening_moves(g, depth=30) for g in games_raw]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not fetch games for {username}: {e}")
 
