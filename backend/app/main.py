@@ -34,6 +34,9 @@ position_types_map = None
 game_stats_by_type = None  # game-level win/draw/loss per position type
 user_preferences = None
 
+# Cache for opponent games: "username:source" -> list of extracted game dicts
+opponent_games_cache: Dict = {}
+
 def _fen_key(fen: str) -> str:
     """FEN comparison key ignoring half-move clock and full-move number."""
     return " ".join(fen.strip().split()[:4])
@@ -476,26 +479,34 @@ async def chess_explorer(fen: str):
 async def opponent_moves(username: str, source: str = "chess.com", fen: str = ""):
     """
     Fetch an opponent's games and return their most common moves at the given FEN.
-    Used by Train vs Player mode.
+    Uses server-side cache so games are only fetched once per username/source pair.
     """
+    global opponent_games_cache
     import chess as chess_lib
-    try:
-        if source == "chess.com":
-            fetcher = ChessDotComFetcher()
-            raw = fetcher.get_games(username, max_archives=6)
-        else:
-            fetcher = LichessFetcher()
-            raw = fetcher.get_games(username, max_games=200)
 
-        if not raw:
-            raise HTTPException(status_code=404, detail=f"No games found for {username} on {source}.")
+    cache_key = f"{username.lower().strip()}:{source}"
+    if cache_key not in opponent_games_cache:
+        try:
+            if source == "chess.com":
+                fetcher = ChessDotComFetcher()
+                raw = fetcher.get_games(username, max_archives=0)  # ALL archives
+            else:
+                fetcher = LichessFetcher()
+                raw = fetcher.get_games(username, max_games=5000)
 
-        games_raw = PGNParser.parse_pgn(raw)
-        opp_games = [PGNParser.extract_opening_moves(g, depth=30) for g in games_raw]
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not fetch games for {username}: {e}")
+            if not raw:
+                raise HTTPException(status_code=404, detail=f"No games found for {username} on {source}.")
+
+            games_raw = PGNParser.parse_pgn(raw)
+            opponent_games_cache[cache_key] = [PGNParser.extract_opening_moves(g, depth=30) for g in games_raw]
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Could not fetch games for {username}: {e}")
+
+    opp_games = opponent_games_cache[cache_key]
+    if not opp_games:
+        raise HTTPException(status_code=404, detail=f"No games found for {username} on {source}.")
 
     # Build move frequency at given position
     target_key = _fen_key(fen) if fen else _fen_key(chess_lib.Board().fen())

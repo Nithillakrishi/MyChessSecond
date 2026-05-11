@@ -85,10 +85,10 @@ function EvalBar({ score, playerColor, isWhiteTurn }) {
   );
 }
 
-export default function TrainVsPlayer({ username: myUsername, profile }) {
+export default function TrainVsPlayer({ username: myUsername, source: mySource, profile }) {
   const [phase, setPhase] = useState('setup'); // setup | game
   const [opponentUsername, setOpponentUsername] = useState('');
-  const [source, setSource] = useState('chess.com');
+  const [oppSource, setOppSource] = useState('chess.com');
   const [playerColor, setPlayerColor] = useState('white');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -101,6 +101,10 @@ export default function TrainVsPlayer({ username: myUsername, profile }) {
   const [totalGames, setTotalGames] = useState(0);
   const [isThinking, setIsThinking] = useState(false);
 
+  // Per-FEN arrow cache to avoid redundant requests
+  const myArrowCache = React.useRef({});
+  const oppArrowCache = React.useRef({});
+
   const { score, analyse } = useEvalBar();
 
   const myColor = playerColor === 'white' ? 'w' : 'b';
@@ -110,30 +114,41 @@ export default function TrainVsPlayer({ username: myUsername, profile }) {
     const isMyTurn = currentGame.turn() === myColor;
 
     if (isMyTurn) {
-      // Show MY moves from my imported games
+      // Show MY moves using /opponent-moves with my own username
+      if (!myUsername) { setArrows([]); return; }
+
+      if (myArrowCache.current[currentFen]) {
+        setArrows(myArrowCache.current[currentFen]);
+        return;
+      }
       try {
-        const res = await axios.get(`${API_BASE}/explorer/moves`, { params: { fen: currentFen } });
-        const moves = (res.data?.moves || []).map(m => ({
-          san: m.san,
-          total: (m.white || 0) + (m.draws || 0) + (m.black || 0),
-        }));
-        setArrows(buildArrows(moves, currentFen, true));
+        const res = await axios.get(`${API_BASE}/opponent-moves`, {
+          params: { username: myUsername, source: mySource || 'chess.com', fen: currentFen },
+        });
+        const arrs = buildArrows(res.data?.moves || [], currentFen, true);
+        myArrowCache.current[currentFen] = arrs;
+        setArrows(arrs);
       } catch {
         setArrows([]);
       }
     } else {
       // Show OPPONENT moves
+      if (oppArrowCache.current[currentFen]) {
+        setArrows(oppArrowCache.current[currentFen]);
+        return;
+      }
       try {
         const res = await axios.get(`${API_BASE}/opponent-moves`, {
-          params: { username: opponentUsername, source, fen: currentFen },
+          params: { username: opponentUsername, source: oppSource, fen: currentFen },
         });
-        const moves = res.data?.moves || [];
-        setArrows(buildArrows(moves, currentFen, false));
+        const arrs = buildArrows(res.data?.moves || [], currentFen, false);
+        oppArrowCache.current[currentFen] = arrs;
+        setArrows(arrs);
       } catch {
         setArrows([]);
       }
     }
-  }, [myColor, opponentUsername, source]);
+  }, [myColor, myUsername, mySource, opponentUsername, oppSource]);
 
   /* Load opponent games to start */
   async function handleStart(e) {
@@ -141,13 +156,16 @@ export default function TrainVsPlayer({ username: myUsername, profile }) {
     if (!opponentUsername.trim()) return;
     setLoading(true);
     setError('');
+    // Clear caches when loading a new opponent
+    myArrowCache.current = {};
+    oppArrowCache.current = {};
     try {
       const res = await axios.get(`${API_BASE}/opponent-moves`, {
-        params: { username: opponentUsername.trim(), source, fen: new Chess().fen() },
+        params: { username: opponentUsername.trim(), source: oppSource, fen: new Chess().fen() },
       });
       setTotalGames(res.data?.total_games || 0);
       if (!res.data?.total_games) {
-        setError(`No games found for ${opponentUsername} on ${source}.`);
+        setError(`No games found for ${opponentUsername} on ${oppSource}.`);
         setLoading(false);
         return;
       }
@@ -193,7 +211,7 @@ export default function TrainVsPlayer({ username: myUsername, profile }) {
     setTimeout(async () => {
       try {
         const res = await axios.get(`${API_BASE}/opponent-moves`, {
-          params: { username: opponentUsername, source, fen: g.fen() },
+          params: { username: opponentUsername, source: oppSource, fen: g.fen() },
         });
         const moves = res.data?.moves || [];
         let oppMove = null;
@@ -289,8 +307,8 @@ export default function TrainVsPlayer({ username: myUsername, profile }) {
             <div className="tvp-source-row">
               {SOURCES.map(s => (
                 <button key={s.id} type="button"
-                  className={`tvp-source-btn ${source === s.id ? 'tvp-source-active' : ''}`}
-                  onClick={() => setSource(s.id)}
+                  className={`tvp-source-btn ${oppSource === s.id ? 'tvp-source-active' : ''}`}
+                  onClick={() => setOppSource(s.id)}
                 >
                   {s.label}
                 </button>
@@ -360,7 +378,7 @@ export default function TrainVsPlayer({ username: myUsername, profile }) {
             <div className="tvp-opp-avatar">{opponentUsername[0]?.toUpperCase()}</div>
             <div>
               <div className="tvp-opp-name">{opponentUsername}</div>
-              <div className="tvp-opp-meta">{totalGames.toLocaleString()} games · {source}</div>
+              <div className="tvp-opp-meta">{totalGames.toLocaleString()} games · {oppSource}</div>
             </div>
           </div>
 

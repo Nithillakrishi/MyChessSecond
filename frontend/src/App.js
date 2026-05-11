@@ -211,7 +211,7 @@ function App() {
           {activeMode === 'position' && <CustomPosition />}
 
           {activeMode === 'opponent' && (
-            <TrainVsPlayer />
+            <TrainVsPlayer username={username} source={source} />
           )}
 
           {activeMode === 'playvs' && (
