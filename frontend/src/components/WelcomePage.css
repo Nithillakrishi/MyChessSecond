@@ -137,6 +137,15 @@
 }
 .wp-tc-icon { font-size: 13px; }
 .wp-tc-name { font-weight: 700; }
+
+/* Opening names row — wider name column, no icon column */
+.wp-tc-row:has(.wp-opening-name) {
+  grid-template-columns: 1fr 74px 90px 80px 36px;
+}
+.wp-opening-name {
+  font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--cream);
+}
 .wp-tc-games { color: var(--muted); font-weight: 600; }
 .wp-tc-wdl { display: flex; gap: 6px; font-weight: 700; font-size: 11px; }
 .wp-tc-bar-outer {

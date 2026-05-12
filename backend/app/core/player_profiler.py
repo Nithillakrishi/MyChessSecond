@@ -29,6 +29,8 @@ class PlayerProfiler:
         player_elo_black = []
         first_moves_white = Counter()
         first_moves_black = Counter()
+        opening_stats_white = defaultdict(lambda: {"games": 0, "wins": 0, "draws": 0, "losses": 0})
+        opening_stats_black = defaultdict(lambda: {"games": 0, "wins": 0, "draws": 0, "losses": 0})
         
         games_as_white = 0
         games_as_black = 0
@@ -75,7 +77,13 @@ class PlayerProfiler:
                 player_result = "draw"
             
             results_from_player_perspective[player_result] += 1
-            
+
+            # Track W/D/L per opening name
+            if opening and opening != "Unknown":
+                stats = opening_stats_white if is_white else opening_stats_black
+                stats[opening]["games"] += 1
+                stats[opening][player_result + "s"] += 1  # "wins", "draws", "losses"
+
             # Track ELO and openings
             if is_white:
                 games_as_white += 1
@@ -131,7 +139,22 @@ class PlayerProfiler:
         avg_opponent_elo_val = sum(avg_opponent_elo) / len(avg_opponent_elo) if avg_opponent_elo else 0
         avg_elo_white = sum(player_elo_white) / len(player_elo_white) if player_elo_white else 0
         avg_elo_black = sum(player_elo_black) / len(player_elo_black) if player_elo_black else 0
-        
+
+        def build_opening_stats(stats_dict, top_n=6):
+            rows = []
+            for name, s in sorted(stats_dict.items(), key=lambda x: x[1]["games"], reverse=True)[:top_n]:
+                total = s["games"]
+                win_rate = round(s["wins"] / total * 100) if total > 0 else 0
+                rows.append({
+                    "name": name,
+                    "games": total,
+                    "wins": s["wins"],
+                    "draws": s["draws"],
+                    "losses": s["losses"],
+                    "win_rate": win_rate,
+                })
+            return rows
+
         return {
             "total_games": total,
             "win_rate": wins / total if total > 0 else 0,
@@ -152,7 +175,9 @@ class PlayerProfiler:
             "avg_opponent_elo": avg_opponent_elo_val,
             "total_games_as_white": games_as_white,
             "total_games_as_black": games_as_black,
-            "username": username
+            "username": username,
+            "top_openings_white": build_opening_stats(opening_stats_white),
+            "top_openings_black": build_opening_stats(opening_stats_black),
         }
     
     @staticmethod
