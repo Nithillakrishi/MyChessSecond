@@ -3,6 +3,8 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
 import { useBoardColors } from '../contexts/ThemeContext';
+import OpeningBadge from './OpeningBadge';
+import { detectOpeningFromGame } from '../utils/openingDetector';
 import './InteractiveCoach.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -371,6 +373,8 @@ export default function InteractiveCoach({ username, preferences, color, onReset
             animationDuration={150}
           />
         </div>
+
+        <OpeningBadge opening={detectOpeningFromGame(game)} />
 
         <div className="move-history">
           {history.length === 0

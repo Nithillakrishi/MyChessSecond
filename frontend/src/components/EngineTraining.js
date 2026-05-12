@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { useBoardColors } from '../contexts/ThemeContext';
+import OpeningBadge from './OpeningBadge';
+import { detectOpeningFromGame } from '../utils/openingDetector';
 import './EngineTraining.css';
 
 function useMultiPV() {
@@ -227,6 +229,8 @@ export default function EngineTraining() {
               />
             </div>
           </div>
+
+          <OpeningBadge opening={detectOpeningFromGame(game)} />
 
           {/* Move history */}
           <div className="et-history">

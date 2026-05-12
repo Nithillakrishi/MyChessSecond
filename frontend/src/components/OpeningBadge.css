@@ -1,0 +1,29 @@
+.ob-root {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 32px;
+}
+
+.ob-eco {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gold);
+  background: rgba(229,139,0,0.12);
+  border: 1px solid rgba(229,139,0,0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ob-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cream);
+  line-height: 1.3;
+}

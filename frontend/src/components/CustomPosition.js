@@ -3,6 +3,8 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
 import { useBoardColors } from '../contexts/ThemeContext';
+import OpeningBadge from './OpeningBadge';
+import { detectOpeningFromGame } from '../utils/openingDetector';
 import './CustomPosition.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -257,6 +259,7 @@ export default function CustomPosition() {
 
         {/* Analysis panel */}
         <div className="cp-panel">
+          <OpeningBadge opening={detectOpeningFromGame(game)} />
           {/* Eval */}
           <div className="cp-eval-card">
             <div className={`cp-eval-score ${evalPositive ? 'cp-eval-pos' : 'cp-eval-neg'}`}>

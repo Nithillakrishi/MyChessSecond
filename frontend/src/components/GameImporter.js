@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import './GameImporter.css';
 
-function GameImporter({ onImport, disabled }) {
+function GameImporter({ onImport, disabled, defaultUsername = '' }) {
   const [source, setSource] = useState('chess.com');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(defaultUsername);
 
   const handleSubmit = (e) => {
     e.preventDefault();

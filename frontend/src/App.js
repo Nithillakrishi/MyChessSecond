@@ -16,10 +16,17 @@ import './App.css';
 
 const API_BASE = 'http://localhost:8000';
 
+function extractError(err, fallback) {
+  const detail = err.response?.data?.detail;
+  if (!detail) return fallback;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) return detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+  return JSON.stringify(detail);
+}
+
 function App() {
-  // Top-level step: login | landing | import | profile | questionnaire | app
-  const [step, setStep] = useState('login');
-  // Active mode inside the app layout
+  // Steps: landing | login | import | questionnaire | app
+  const [step, setStep] = useState('landing');
   const [activeMode, setActiveMode] = useState('welcome');
 
   const [loggedInUser, setLoggedInUser] = useState(null);
@@ -34,13 +41,27 @@ function App() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
 
-  // Check if user is logged in on mount
+  // Restore session — skip straight to app if already logged in; load cached profile
   useEffect(() => {
     const savedUsername = localStorage.getItem('username');
-    if (savedUsername) {
-      setLoggedInUser(savedUsername);
-      setStep('landing');
+    if (!savedUsername) return;
+    setLoggedInUser(savedUsername);
+    setUsername(savedUsername);
+    setStep('app');
+
+    // Fast path: restore from localStorage cache immediately
+    const cachedProfile = localStorage.getItem('playerProfile');
+    if (cachedProfile) {
+      try { setPlayerProfile(JSON.parse(cachedProfile)); } catch {}
     }
+
+    // Also refresh from SQLite in background (restores games_data on backend too)
+    axios.get(`${API_BASE}/cached-profile`, { params: { username: savedUsername } })
+      .then(res => {
+        setPlayerProfile(res.data);
+        localStorage.setItem('playerProfile', JSON.stringify(res.data));
+      })
+      .catch(() => {}); // silently ignore if no cache exists yet
   }, []);
 
   React.useEffect(() => {
@@ -55,27 +76,29 @@ function App() {
     return () => clearInterval(interval);
   }, [loading]);
 
-  /* ── Login handler ── */
-  const handleLoginSuccess = (username) => {
-    setLoggedInUser(username);
-    setStep('landing');
+  /* ── Login handler (Jeeva's LoginPage callback) ── */
+  const handleLoginSuccess = (user) => {
+    setLoggedInUser(user);
+    setUsername(user);
+    localStorage.setItem('username', user);
+    setStep('import');
   };
 
   /* ── Refresh data handler ── */
   const handleRefreshData = async () => {
-    if (!loggedInUser || !username) return;
-    
+    if (!username) return;
     setLoading(true);
     setLoadingMessage(`Refreshing games for ${username}…`);
     setError(null);
     try {
       const res = await axios.post(`${API_BASE}/analyze-profile`, {
-        source: source,
-        username: username,
+        source,
+        username,
       });
       setPlayerProfile(res.data);
+      localStorage.setItem('playerProfile', JSON.stringify(res.data));
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error refreshing games');
+      setError(extractError(err, 'Error refreshing games'));
     } finally {
       setLoading(false);
     }
@@ -89,14 +112,16 @@ function App() {
     try {
       setUsername(importedUsername);
       setSource(importedSource);
+
       const res = await axios.post(`${API_BASE}/analyze-profile`, {
         source: importedSource,
         username: importedUsername,
       });
       setPlayerProfile(res.data);
+      localStorage.setItem('playerProfile', JSON.stringify(res.data));
       setStep('app');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error importing games');
+      setError(extractError(err, 'Error importing games'));
     } finally {
       setLoading(false);
     }
@@ -112,7 +137,7 @@ function App() {
       setQuestionnaireData(res.data);
       setStep('questionnaire');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error generating questionnaire');
+      setError(extractError(err, 'Error generating questionnaire'));
     } finally {
       setLoading(false);
     }
@@ -124,48 +149,43 @@ function App() {
     setLoadingMessage('Saving your position preferences…');
     setError(null);
     try {
-      // Convert selected_positions array to preferences dict
-      // Selected positions get score of 5, unselected get 1
       const preferences = {};
       if (questionnaireData && questionnaireData.position_types_with_stats) {
         questionnaireData.position_types_with_stats.forEach(item => {
-          preferences[item.position_type] = 
+          preferences[item.position_type] =
             questionnaire_response.selected_positions.includes(item.position_type) ? 5 : 1;
         });
       }
-      
-      // Send in backend-expected format
       const payload = {
         username: questionnaire_response.username,
-        preferences: preferences,
-        color: questionnaire_response.color
+        preferences,
+        color: questionnaire_response.color,
       };
-      
       await axios.post(`${API_BASE}/submit-preferences`, payload);
       setRepertoireData({ preferences, color: payload.color });
       setActiveMode('coach');
       setStep('app');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error saving preferences');
+      setError(extractError(err, 'Error saving preferences'));
     } finally {
       setLoading(false);
     }
   };
 
-  /* ── Mode selection from WelcomePage or sidebar ── */
+  /* ── Mode selection ── */
   const handleModeSelect = (mode) => {
     if (mode === 'coach' && !repertoireData) {
-      // Need questionnaire first
       handleProfileAccepted();
       return;
     }
     setActiveMode(mode);
   };
 
-  /* ── Reset ── */
+  /* ── Sign out — return to login screen (Jeeva's spec) ── */
   const handleReset = () => {
     localStorage.removeItem('username');
     localStorage.removeItem('token');
+    localStorage.removeItem('playerProfile');
     setLoggedInUser(null);
     setStep('login');
     setActiveMode('welcome');
@@ -201,30 +221,37 @@ function App() {
         </div>
       )}
 
+      {/* Your landing page — shown only on first visit */}
+      {step === 'landing' && (
+        <LandingPage onStart={() => setStep('login')} />
+      )}
+
+      {/* Jeeva's login/register page */}
       {step === 'login' && (
         <LoginPage onLoginSuccess={handleLoginSuccess} />
       )}
 
-      {step === 'landing' && (
-        <LandingPage onStart={() => setStep('import')} />
-      )}
-
+      {/* Game importer — username pre-filled from login */}
       {step === 'import' && (
         <div className="app-page-wrap">
           <div className="app-page-header">
-            <div className="app-page-logo" onClick={handleReset}>
+            <div className="app-page-logo" onClick={() => setStep('login')}>
               <Logo size={30} />
               <span>MyChess<strong>2nd</strong></span>
             </div>
           </div>
-          <GameImporter onImport={handleGameImport} disabled={loading} />
+          <GameImporter
+            onImport={handleGameImport}
+            disabled={loading}
+            defaultUsername={loggedInUser || ''}
+          />
         </div>
       )}
 
       {step === 'questionnaire' && questionnaireData && (
         <div className="app-page-wrap">
           <div className="app-page-header">
-            <div className="app-page-logo" onClick={handleReset}>
+            <div className="app-page-logo" onClick={() => setStep('login')}>
               <Logo size={30} />
               <span>MyChess<strong>2nd</strong></span>
             </div>
@@ -253,7 +280,6 @@ function App() {
               username={username}
               profile={playerProfile}
               onSelect={handleModeSelect}
-              questionnaireData={questionnaireData}
               onRefresh={handleRefreshData}
             />
           )}
@@ -282,7 +308,6 @@ function App() {
           )}
         </AppLayout>
       )}
-
     </div>
   );
 }

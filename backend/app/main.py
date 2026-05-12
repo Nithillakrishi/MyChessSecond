@@ -21,7 +21,7 @@ app = FastAPI(title="Chess Second", version="0.1.0")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,6 +42,9 @@ def _fen_key(fen: str) -> str:
     return " ".join(fen.strip().split()[:4])
 
 # Pydantic models
+class AuthRequest(BaseModel):
+    username: str
+
 class FetchGamesRequest(BaseModel):
     source: str  # "chess.com" or "lichess"
     username: str
@@ -642,6 +645,18 @@ async def analyze_profile(request: FetchGamesRequest):
             games_data.append(opening_info)
         
         print(f"Extracted opening info from {len(games_data)} games")
+
+        # Persist profile to SQLite cache so session restores can load it instantly
+        try:
+            from app.database import register_user, get_user_id, save_user_data
+            register_user(request.username)  # ensure user row exists
+            uid = get_user_id(request.username)
+            if uid:
+                save_user_data(uid, "profile", player_profile, source=request.source)
+                save_user_data(uid, "games", games_data, source=request.source)
+        except Exception as cache_err:
+            print(f"Warning: failed to cache profile in SQLite: {cache_err}")
+
         return player_profile
     except Exception as e:
         import traceback
@@ -1030,28 +1045,46 @@ async def get_personalized_repertoire():
         print(f"Error generating repertoire: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
+@app.get("/cached-profile")
+async def cached_profile(username: str):
+    """Return the last cached profile for a user without re-fetching from Chess.com/Lichess."""
+    from app.database import get_user_id, get_user_data
+    uid = get_user_id(username)
+    if not uid:
+        raise HTTPException(status_code=404, detail="No cached profile found")
+    profile = get_user_data(uid, "profile")
+    if not profile:
+        raise HTTPException(status_code=404, detail="No cached profile found")
+    # Restore global games_data so other endpoints work after session restore
+    global player_profile, games_data
+    player_profile = profile
+    cached_games = get_user_data(uid, "games")
+    if cached_games:
+        games_data = cached_games
+    return profile
+
 @app.post("/register")
-async def register(request: FetchGamesRequest):
+async def register(request: AuthRequest):
     """Register a new user"""
     from app.database import register_user
-    
+
     username = request.username.strip()
     if not username:
         raise HTTPException(status_code=400, detail="Username cannot be empty")
-    
+
     result = register_user(username)
     return result
 
 @app.post("/login")
-async def login(request: FetchGamesRequest):
+async def login(request: AuthRequest):
     """Login user"""
     from app.database import register_user
-    
+
     username = request.username.strip()
     if not username:
         raise HTTPException(status_code=400, detail="Username cannot be empty")
-    
-    result = register_user(username)  # Register or get existing
+
+    result = register_user(username)
     return result
 
 if __name__ == "__main__":
