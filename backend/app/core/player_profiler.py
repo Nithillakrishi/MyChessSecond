@@ -35,20 +35,29 @@ class PlayerProfiler:
 
         games_as_white = 0
         games_as_black = 0
-        
+        _first_headers_printed = False
+
         for game in games:
             white_player = game.headers.get("White", "").lower().strip()
             black_player = game.headers.get("Black", "").lower().strip()
             result = game.headers.get("Result", "*")
             opening = game.headers.get("Opening", "") or ""
             if not opening or opening == "None":
-                # Chess.com doesn't send Opening header — derive from ECOUrl
+                # Chess.com PGN uses ECOUrl instead of Opening header
                 eco_url = game.headers.get("ECOUrl", "") or ""
                 if eco_url:
                     slug = eco_url.rstrip("/").split("/")[-1]
                     opening = slug.replace("-", " ")
                 else:
-                    opening = "Unknown"
+                    # Last resort: use ECO code + site
+                    eco = game.headers.get("ECO", "") or ""
+                    opening = eco if eco else "Unknown"
+
+            # Print first game's available headers for debugging
+            if not _first_headers_printed:
+                _first_headers_printed = True
+                print(f"[DEBUG] Sample PGN headers: {dict(list(game.headers.items())[:12])}")
+                print(f"[DEBUG] Opening resolved to: '{opening}'")
             
             eco = game.headers.get("ECO", "")
             
@@ -145,6 +154,11 @@ class PlayerProfiler:
                     except:
                         pass
         
+        print(f"[DEBUG] Unique openings as White: {len(opening_stats_white)}, as Black: {len(opening_stats_black)}")
+        if opening_stats_white:
+            top3 = list(opening_stats_white.items())[:3]
+            print(f"[DEBUG] Top 3 white openings: {[(k, v['games']) for k, v in top3]}")
+
         # Calculate statistics
         wins = results_from_player_perspective.get("win", 0)
         losses = results_from_player_perspective.get("loss", 0)
