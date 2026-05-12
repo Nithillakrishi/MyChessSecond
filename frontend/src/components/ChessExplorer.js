@@ -3,6 +3,8 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
 import { useBoardColors } from '../contexts/ThemeContext';
+import OpeningBadge from './OpeningBadge';
+import { detectOpeningByMoves } from '../utils/openingDetector';
 import './ChessExplorer.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -169,6 +171,8 @@ export default function ChessExplorer() {
               />
             </div>
           </div>
+
+          <OpeningBadge opening={detectOpeningByMoves(history)} />
 
           {/* Move history */}
           <div className="ce-history">
