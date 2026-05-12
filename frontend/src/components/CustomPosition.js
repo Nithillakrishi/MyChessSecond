@@ -97,6 +97,8 @@ export default function CustomPosition() {
   const [game, setGame]           = useState(new Chess());
   const [fen, setFen]             = useState(STARTING_FEN);
   const [sanHistory, setSanHistory] = useState([]);
+  const [startFen, setStartFen] = useState(STARTING_FEN);
+  const [selectedSquare, setSelectedSquare] = useState(null);
   const [lastMove, setLastMove]   = useState(null);
   const [explorerMoves, setExplorerMoves] = useState([]);
   const [explorerLoading, setExplorerLoading] = useState(false);
@@ -108,10 +110,12 @@ export default function CustomPosition() {
       setGame(g);
       setFen(g.fen());
       setFenInput(g.fen());
+      setStartFen(g.fen());
       setFenError('');
       setLastMove(null);
       setExplorerMoves([]);
       setSanHistory([]);
+      setSelectedSquare(null);
       analyse(g.fen());
       fetchExplorer(g.fen());
     } catch {
@@ -136,20 +140,36 @@ export default function CustomPosition() {
     fetchExplorer(STARTING_FEN);
   }, []); // eslint-disable-line
 
-  function onDrop(from, to, piece) {
-    const g = new Chess(game.fen());
-    const move = g.move({ from, to, promotion: piece?.slice(-1)?.toLowerCase() || 'q' });
-    if (!move) return false;
-    setGame(g);
-    setFen(g.fen());
-    setFenInput(g.fen());
+  function commitMove(g, move, newHistory) {
+    setGame(g); setFen(g.fen()); setFenInput(g.fen());
     setLastMove({ from: move.from, to: move.to });
-    setFenError('');
-    setExplorerMoves([]);
-    setSanHistory(h => [...h, move.san]);
-    analyse(g.fen());
-    fetchExplorer(g.fen());
+    setFenError(''); setExplorerMoves([]);
+    setSanHistory(newHistory); setSelectedSquare(null);
+    analyse(g.fen()); fetchExplorer(g.fen());
+  }
+
+  function onDrop(from, to) {
+    const g = new Chess(game.fen());
+    let move;
+    try { move = g.move({ from, to, promotion: 'q' }); } catch { return false; }
+    if (!move) return false;
+    commitMove(g, move, [...sanHistory, move.san]);
     return true;
+  }
+
+  function onSquareClick(square) {
+    if (selectedSquare) {
+      const g = new Chess(game.fen());
+      let move;
+      try { move = g.move({ from: selectedSquare, to: square, promotion: 'q' }); } catch {}
+      if (move) { commitMove(g, move, [...sanHistory, move.san]); return; }
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+      else setSelectedSquare(null);
+    } else {
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+    }
   }
 
   function playBestMove() {
@@ -188,23 +208,35 @@ export default function CustomPosition() {
   }
 
   function goBack() {
-    const g = new Chess(game.fen());
-    g.undo();
-    setGame(g);
-    setFen(g.fen());
-    setFenInput(g.fen());
-    setLastMove(null);
-    setExplorerMoves([]);
-    setSanHistory(h => h.slice(0, -1));
-    analyse(g.fen());
-    fetchExplorer(g.fen());
+    if (sanHistory.length === 0) return;
+    const newHistory = sanHistory.slice(0, -1);
+    const base = new Chess(startFen);
+    for (const san of newHistory) { try { base.move(san); } catch {} }
+    setGame(base); setFen(base.fen()); setFenInput(base.fen());
+    setLastMove(null); setExplorerMoves([]);
+    setSanHistory(newHistory); setSelectedSquare(null);
+    analyse(base.fen()); fetchExplorer(base.fen());
   }
 
-  const customSquareStyles = {};
-  if (lastMove) {
-    customSquareStyles[lastMove.from] = { background: 'rgba(229,139,0,0.35)' };
-    customSquareStyles[lastMove.to]   = { background: 'rgba(229,139,0,0.45)' };
+  const legalMoveDots = {};
+  if (selectedSquare) {
+    game.moves({ square: selectedSquare, verbose: true }).forEach(m => {
+      legalMoveDots[m.to] = {
+        background: game.get(m.to)
+          ? 'radial-gradient(circle, rgba(0,0,0,.35) 85%, transparent 85%)'
+          : 'radial-gradient(circle, rgba(0,0,0,.25) 30%, transparent 30%)',
+        borderRadius: '50%',
+      };
+    });
   }
+  const customSquareStyles = {
+    ...(lastMove ? {
+      [lastMove.from]: { background: 'rgba(229,139,0,0.35)' },
+      [lastMove.to]:   { background: 'rgba(229,139,0,0.45)' },
+    } : {}),
+    ...(selectedSquare ? { [selectedSquare]: { background: 'rgba(255,215,0,0.55)' } } : {}),
+    ...legalMoveDots,
+  };
 
   const isWhiteTurn = game.turn() === 'w';
   const evalVal = evalLabel(sfInfo, isWhiteTurn);
@@ -252,6 +284,7 @@ export default function CustomPosition() {
             <Chessboard
               position={fen}
               onPieceDrop={onDrop}
+              onSquareClick={onSquareClick}
               boardOrientation="white"
               customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
               customDarkSquareStyle={{ backgroundColor: boardDark }}

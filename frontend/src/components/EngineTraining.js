@@ -154,40 +154,63 @@ export default function EngineTraining() {
   const [fen, setFen] = useState(new Chess().fen());
   const [lastMove, setLastMove] = useState(null);
   const [history, setHistory] = useState([]);
+  const [selectedSquare, setSelectedSquare] = useState(null);
   const { lines, score, ready, analyse } = useMultiPV();
 
   useEffect(() => {
     analyse(new Chess().fen());
   }, []); // eslint-disable-line
 
-  function onDrop(from, to, piece) {
-    const g = new Chess(game.fen());
-    const m = g.move({ from, to, promotion: piece?.slice(-1)?.toLowerCase() || 'q' });
-    if (!m) return false;
-    setGame(g);
-    setFen(g.fen());
+  function applyHistory(sans) {
+    const g = new Chess();
+    for (const san of sans) { try { g.move(san); } catch {} }
+    return g;
+  }
+
+  function commitMove(g, m, newHistory) {
+    setGame(g); setFen(g.fen());
     setLastMove({ from: m.from, to: m.to });
-    setHistory(prev => [...prev, m.san]);
+    setHistory(newHistory); setSelectedSquare(null);
     analyse(g.fen());
+  }
+
+  function onDrop(from, to) {
+    const g = new Chess(game.fen());
+    let m;
+    try { m = g.move({ from, to, promotion: 'q' }); } catch { return false; }
+    if (!m) return false;
+    commitMove(g, m, [...history, m.san]);
     return true;
   }
 
+  function onSquareClick(square) {
+    if (selectedSquare) {
+      const g = new Chess(game.fen());
+      let m;
+      try { m = g.move({ from: selectedSquare, to: square, promotion: 'q' }); } catch {}
+      if (m) { commitMove(g, m, [...history, m.san]); return; }
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+      else setSelectedSquare(null);
+    } else {
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+    }
+  }
+
   function goBack() {
-    const g = new Chess(game.fen());
-    g.undo();
-    setGame(g);
-    setFen(g.fen());
-    setLastMove(null);
-    setHistory(prev => prev.slice(0, -1));
+    if (history.length === 0) return;
+    const newHistory = history.slice(0, -1);
+    const g = applyHistory(newHistory);
+    setGame(g); setFen(g.fen()); setLastMove(null);
+    setHistory(newHistory); setSelectedSquare(null);
     analyse(g.fen());
   }
 
   function reset() {
     const g = new Chess();
-    setGame(g);
-    setFen(g.fen());
-    setLastMove(null);
-    setHistory([]);
+    setGame(g); setFen(g.fen()); setLastMove(null);
+    setHistory([]); setSelectedSquare(null);
     analyse(g.fen());
   }
 
@@ -199,11 +222,25 @@ export default function EngineTraining() {
     ? (adjustedScore >= 0 ? `+${adjustedScore.toFixed(2)}` : adjustedScore.toFixed(2))
     : '—';
 
-  const customSquareStyles = {};
-  if (lastMove) {
-    customSquareStyles[lastMove.from] = { background: 'rgba(229,139,0,0.35)' };
-    customSquareStyles[lastMove.to]   = { background: 'rgba(229,139,0,0.45)' };
+  const legalMoveDots = {};
+  if (selectedSquare) {
+    game.moves({ square: selectedSquare, verbose: true }).forEach(m => {
+      legalMoveDots[m.to] = {
+        background: game.get(m.to)
+          ? 'radial-gradient(circle, rgba(0,0,0,.35) 85%, transparent 85%)'
+          : 'radial-gradient(circle, rgba(0,0,0,.25) 30%, transparent 30%)',
+        borderRadius: '50%',
+      };
+    });
   }
+  const customSquareStyles = {
+    ...(lastMove ? {
+      [lastMove.from]: { background: 'rgba(229,139,0,0.35)' },
+      [lastMove.to]:   { background: 'rgba(229,139,0,0.45)' },
+    } : {}),
+    ...(selectedSquare ? { [selectedSquare]: { background: 'rgba(255,215,0,0.55)' } } : {}),
+    ...legalMoveDots,
+  };
 
   return (
     <div className="et-root">
@@ -221,6 +258,7 @@ export default function EngineTraining() {
               <Chessboard
                 position={fen}
                 onPieceDrop={onDrop}
+                onSquareClick={onSquareClick}
                 boardOrientation="white"
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
                 customDarkSquareStyle={{ backgroundColor: boardDark }}

@@ -222,7 +222,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
         setSelectedSquare(null);
         return true;
       }
-    } catch (err) { console.error('Move error:', err.message); }
+    } catch {}
     return false;
   }, [game, sanHistory, fetchMentor]);
 
@@ -241,12 +241,13 @@ export default function InteractiveCoach({ username, preferences, color, onReset
   const onPieceDrop = (src, tgt) => applyMove(src, tgt);
   const playMove    = (san) => applyMove(null, null, san);
   const handleUndo  = () => {
-    const c = new Chess(game.fen());
-    c.undo();
+    if (sanHistory.length === 0) return;
     const newHistory = sanHistory.slice(0, -1);
-    setGame(c);
+    const g = new Chess();
+    for (const san of newHistory) { try { g.move(san); } catch {} }
+    setGame(g);
     setSanHistory(newHistory);
-    fetchMentor(c.fen(), newHistory);
+    fetchMentor(g.fen(), newHistory);
     setSelectedSquare(null);
   };
   const resetBoard  = () => {
@@ -274,9 +275,21 @@ export default function InteractiveCoach({ username, preferences, color, onReset
     } catch {}
   }
 
-  const customSquareStyles = selectedSquare
-    ? { [selectedSquare]: { backgroundColor: 'rgba(255,215,0,0.55)', borderRadius: '4px' } }
-    : {};
+  const legalMoveDots = {};
+  if (selectedSquare) {
+    game.moves({ square: selectedSquare, verbose: true }).forEach(m => {
+      legalMoveDots[m.to] = {
+        background: game.get(m.to)
+          ? 'radial-gradient(circle, rgba(0,0,0,.35) 85%, transparent 85%)'
+          : 'radial-gradient(circle, rgba(0,0,0,.25) 30%, transparent 30%)',
+        borderRadius: '50%',
+      };
+    });
+  }
+  const customSquareStyles = {
+    ...(selectedSquare ? { [selectedSquare]: { backgroundColor: 'rgba(255,215,0,0.55)' } } : {}),
+    ...legalMoveDots,
+  };
 
   return (
     <div className="coach-outer">

@@ -67,6 +67,7 @@ export default function PlayVsStockfish() {
   const [lastMove, setLastMove] = useState(null);
   const [result, setResult] = useState(null);
   const [moveHistory, setMoveHistory] = useState([]);
+  const [selectedSquare, setSelectedSquare] = useState(null);
   const { getBestMove } = useStockfishEngine();
   const engineColor = playerColor === 'white' ? 'b' : 'w';
 
@@ -133,57 +134,79 @@ export default function PlayVsStockfish() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  function onDrop(sourceSquare, targetSquare, piece) {
+  function commitPlayerMove(g, move) {
+    setGame(g); setFen(g.fen());
+    setLastMove({ from: move.from, to: move.to });
+    setMoveHistory(prev => [...prev, move.san]);
+    setSelectedSquare(null);
+    setStatus(g.isCheck() ? 'Check!' : '');
+    const over = checkGameOver(g);
+    if (over) { setResult(over); setPhase('over'); }
+  }
+
+  function onDrop(sourceSquare, targetSquare) {
     if (phase !== 'game') return false;
     if (game.turn() !== (playerColor === 'white' ? 'w' : 'b')) return false;
     if (thinking) return false;
-
     const g = new Chess(game.fen());
-    const move = g.move({
-      from: sourceSquare,
-      to: targetSquare,
-      promotion: piece?.slice(-1)?.toLowerCase() || 'q',
-    });
+    let move;
+    try { move = g.move({ from: sourceSquare, to: targetSquare, promotion: 'q' }); } catch { return false; }
     if (!move) return false;
-
-    setGame(g);
-    setFen(g.fen());
-    setLastMove({ from: move.from, to: move.to });
-    setMoveHistory(prev => [...prev, move.san]);
-    setStatus(g.isCheck() ? 'Check!' : '');
-
-    const over = checkGameOver(g);
-    if (over) { setResult(over); setPhase('over'); }
-
+    commitPlayerMove(g, move);
     return true;
+  }
+
+  function onSquareClick(square) {
+    if (phase !== 'game' || thinking) return;
+    const isPlayerTurn = game.turn() === (playerColor === 'white' ? 'w' : 'b');
+    if (!isPlayerTurn) return;
+
+    if (selectedSquare) {
+      const g = new Chess(game.fen());
+      let move;
+      try { move = g.move({ from: selectedSquare, to: square, promotion: 'q' }); } catch {}
+      if (move) { commitPlayerMove(g, move); return; }
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+      else setSelectedSquare(null);
+    } else {
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+    }
   }
 
   function startGame() {
     const g = new Chess();
-    setGame(g);
-    setFen(g.fen());
-    setLastMove(null);
-    setResult(null);
-    setMoveHistory([]);
-    setStatus('');
-    setPhase('game');
+    setGame(g); setFen(g.fen()); setLastMove(null);
+    setResult(null); setMoveHistory([]); setStatus('');
+    setSelectedSquare(null); setPhase('game');
   }
 
   function resetToSetup() {
     setPhase('setup');
-    setGame(new Chess());
-    setFen(new Chess().fen());
-    setLastMove(null);
-    setResult(null);
-    setMoveHistory([]);
-    setStatus('');
+    setGame(new Chess()); setFen(new Chess().fen()); setLastMove(null);
+    setResult(null); setMoveHistory([]); setStatus(''); setSelectedSquare(null);
   }
 
-  const customSquareStyles = {};
-  if (lastMove) {
-    customSquareStyles[lastMove.from] = { background: 'rgba(229,139,0,0.35)' };
-    customSquareStyles[lastMove.to]   = { background: 'rgba(229,139,0,0.45)' };
+  const legalMoveDots = {};
+  if (selectedSquare) {
+    game.moves({ square: selectedSquare, verbose: true }).forEach(m => {
+      legalMoveDots[m.to] = {
+        background: game.get(m.to)
+          ? 'radial-gradient(circle, rgba(0,0,0,.35) 85%, transparent 85%)'
+          : 'radial-gradient(circle, rgba(0,0,0,.25) 30%, transparent 30%)',
+        borderRadius: '50%',
+      };
+    });
   }
+  const customSquareStyles = {
+    ...(lastMove ? {
+      [lastMove.from]: { background: 'rgba(229,139,0,0.35)' },
+      [lastMove.to]:   { background: 'rgba(229,139,0,0.45)' },
+    } : {}),
+    ...(selectedSquare ? { [selectedSquare]: { background: 'rgba(255,215,0,0.55)' } } : {}),
+    ...legalMoveDots,
+  };
 
   /* ── Setup screen ── */
   if (phase === 'setup') {
@@ -271,6 +294,7 @@ export default function PlayVsStockfish() {
             <Chessboard
               position={fen}
               onPieceDrop={onDrop}
+              onSquareClick={onSquareClick}
               boardOrientation={playerColor}
               customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
               customDarkSquareStyle={{ backgroundColor: boardDark }}
