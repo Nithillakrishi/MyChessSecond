@@ -4,7 +4,7 @@ import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
 import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
-import { detectOpening } from '../utils/openingDetector';
+import { detectOpening, detectOpeningByMoves } from '../utils/openingDetector';
 import './TrainVsPlayer.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -346,7 +346,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
   /* ── Explorer phase ── */
   const isMyTurn = game.turn() === myColor;
   const boardSize = Math.min(500, window.innerWidth - 340);
-  const opening = detectOpening(fenHistory);
+  const opening = detectOpening(fenHistory) || detectOpeningByMoves(sanHistory);
 
   return (
     <div className="tvp-root">
