@@ -189,13 +189,12 @@ export default function InteractiveCoach({ username, preferences, color, onReset
   const isWhiteTurn = game.turn() === 'w';
   const isUserTurn  = color === 'white' ? isWhiteTurn : !isWhiteTurn;
 
-  // Fetch coach data whenever board changes
-  const fetchMentor = useCallback(async (g) => {
-    const fen = g.fen();
+  // Fetch coach data — takes fen + full SAN history explicitly (never uses game.history())
+  const fetchMentor = useCallback(async (fen, moves) => {
     analyse(fen);
     setMentorLoading(true);
     try {
-      const res = await axios.post(`${API_BASE}/coach/lines`, { moves: g.history(), color });
+      const res = await axios.post(`${API_BASE}/coach/lines`, { moves, color });
       setMentorData(res.data);
     } catch (err) {
       console.error('Coach lines error:', err.response?.data || err.message);
@@ -205,19 +204,27 @@ export default function InteractiveCoach({ username, preferences, color, onReset
     }
   }, [color, analyse]);
 
-  useEffect(() => { fetchMentor(game); }, [game, fetchMentor]);
+  // Initial fetch on mount
+  useEffect(() => { fetchMentor(new Chess().fen(), []); }, []); // eslint-disable-line
 
-  // Move execution
+  // Move execution — updates sanHistory inline so fetchMentor gets the full list
   const applyMove = useCallback((from, to, san) => {
     try {
       const copy = new Chess(game.fen());
       let move;
       if (san)       move = copy.move(san);
       else if (from) move = copy.move({ from, to, promotion: 'q' });
-      if (move) { setGame(copy); setSanHistory(h => [...h, move.san]); setSelectedSquare(null); return true; }
+      if (move) {
+        const newHistory = [...sanHistory, move.san];
+        setGame(copy);
+        setSanHistory(newHistory);
+        fetchMentor(copy.fen(), newHistory);
+        setSelectedSquare(null);
+        return true;
+      }
     } catch (err) { console.error('Move error:', err.message); }
     return false;
-  }, [game]);
+  }, [game, sanHistory, fetchMentor]);
 
   const handleSquareClick = useCallback((sq) => {
     const piece = game.get(sq);
@@ -233,8 +240,22 @@ export default function InteractiveCoach({ username, preferences, color, onReset
 
   const onPieceDrop = (src, tgt) => applyMove(src, tgt);
   const playMove    = (san) => applyMove(null, null, san);
-  const handleUndo  = () => { const c = new Chess(game.fen()); c.undo(); setGame(c); setSanHistory(h => h.slice(0, -1)); setSelectedSquare(null); };
-  const resetBoard  = () => { setGame(new Chess()); setSanHistory([]); setSelectedSquare(null); };
+  const handleUndo  = () => {
+    const c = new Chess(game.fen());
+    c.undo();
+    const newHistory = sanHistory.slice(0, -1);
+    setGame(c);
+    setSanHistory(newHistory);
+    fetchMentor(c.fen(), newHistory);
+    setSelectedSquare(null);
+  };
+  const resetBoard  = () => {
+    const g = new Chess();
+    setGame(g);
+    setSanHistory([]);
+    fetchMentor(g.fen(), []);
+    setSelectedSquare(null);
+  };
 
   // Eval bar — Stockfish score is always from side-to-move's perspective
   const adjustedScore = isWhiteTurn ? sfInfo.score : -sfInfo.score;
@@ -253,7 +274,6 @@ export default function InteractiveCoach({ username, preferences, color, onReset
     } catch {}
   }
 
-  const history = game.history();
   const customSquareStyles = selectedSquare
     ? { [selectedSquare]: { backgroundColor: 'rgba(255,215,0,0.55)', borderRadius: '4px' } }
     : {};
@@ -378,9 +398,9 @@ export default function InteractiveCoach({ username, preferences, color, onReset
         <OpeningBadge opening={detectOpeningByMoves(sanHistory)} />
 
         <div className="move-history">
-          {history.length === 0
+          {sanHistory.length === 0
             ? <span className="hint-text">No moves yet</span>
-            : history.map((m, i) => (
+            : sanHistory.map((m, i) => (
                 <span key={i} className="hist-move">
                   {i % 2 === 0 && <span className="hist-num">{Math.floor(i / 2) + 1}.</span>}
                   {m}
@@ -389,7 +409,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
         </div>
 
         <div className="board-actions">
-          <button className="btn-secondary" onClick={handleUndo} disabled={history.length === 0}>↩ Undo</button>
+          <button className="btn-secondary" onClick={handleUndo} disabled={sanHistory.length === 0}>↩ Undo</button>
           <button className="btn-secondary" onClick={resetBoard}>Reset Board</button>
           <button className="btn-danger" onClick={onReset}>Start Over</button>
         </div>
