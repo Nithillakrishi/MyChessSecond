@@ -187,54 +187,55 @@ export default function WelcomePage({ username, profile, onSelect, onRefresh }) 
             )}
           </div>
 
-          {/* Row 2: openings as White + Black */}
-          {(topOpeningsWhite.length > 0 || topOpeningsBlack.length > 0) && (
+          {/* Row 2: openings as White */}
+          {topOpeningsWhite.length > 0 && (
             <div className="wp-charts-row">
-              {topOpeningsWhite.length > 0 && (
-                <div className="wp-chart-card wp-chart-card-grow">
-                  <div className="wp-chart-title">Your Openings (as White)</div>
-                  <div className="wp-tc-details">
-                    {topOpeningsWhite.map(o => (
-                      <div key={o.name} className="wp-tc-row">
-                        <span className="wp-opening-name">{o.name}</span>
-                        <span className="wp-tc-games">{o.games.toLocaleString()} games</span>
-                        <div className="wp-tc-wdl">
-                          <span style={{ color: WIN_COLOR  }}>{o.wins}W</span>
-                          <span style={{ color: DRAW_COLOR }}>{o.draws}D</span>
-                          <span style={{ color: LOSS_COLOR }}>{o.losses}L</span>
-                        </div>
-                        <div className="wp-tc-bar-outer">
-                          <div className="wp-tc-bar-fill" style={{ width: `${o.win_rate}%`, background: WIN_COLOR }} />
-                        </div>
-                        <span className="wp-tc-wr" style={{ color: WIN_COLOR }}>{o.win_rate}%</span>
+              <div className="wp-chart-card wp-chart-card-grow">
+                <div className="wp-chart-title">Your Openings (as White)</div>
+                <div className="wp-tc-details">
+                  {topOpeningsWhite.map(o => (
+                    <div key={o.name} className="wp-tc-row">
+                      <span className="wp-opening-name">{o.name}</span>
+                      <span className="wp-tc-games">{o.games.toLocaleString()} games</span>
+                      <div className="wp-tc-wdl">
+                        <span style={{ color: WIN_COLOR  }}>{o.wins}W</span>
+                        <span style={{ color: DRAW_COLOR }}>{o.draws}D</span>
+                        <span style={{ color: LOSS_COLOR }}>{o.losses}L</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="wp-tc-bar-outer">
+                        <div className="wp-tc-bar-fill" style={{ width: `${o.win_rate}%`, background: WIN_COLOR }} />
+                      </div>
+                      <span className="wp-tc-wr" style={{ color: WIN_COLOR }}>{o.win_rate}%</span>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
-              {topOpeningsBlack.length > 0 && (
-                <div className="wp-chart-card wp-chart-card-grow">
-                  <div className="wp-chart-title">Your Openings (as Black)</div>
-                  <div className="wp-tc-details">
-                    {topOpeningsBlack.map(o => (
-                      <div key={o.name} className="wp-tc-row">
-                        <span className="wp-opening-name">{o.name}</span>
-                        <span className="wp-tc-games">{o.games.toLocaleString()} games</span>
-                        <div className="wp-tc-wdl">
-                          <span style={{ color: WIN_COLOR  }}>{o.wins}W</span>
-                          <span style={{ color: DRAW_COLOR }}>{o.draws}D</span>
-                          <span style={{ color: LOSS_COLOR }}>{o.losses}L</span>
-                        </div>
-                        <div className="wp-tc-bar-outer">
-                          <div className="wp-tc-bar-fill" style={{ width: `${o.win_rate}%`, background: '#5B9BD5' }} />
-                        </div>
-                        <span className="wp-tc-wr" style={{ color: '#5B9BD5' }}>{o.win_rate}%</span>
+          {/* Row 3: openings as Black */}
+          {topOpeningsBlack.length > 0 && (
+            <div className="wp-charts-row">
+              <div className="wp-chart-card wp-chart-card-grow">
+                <div className="wp-chart-title">Your Openings (as Black)</div>
+                <div className="wp-tc-details">
+                  {topOpeningsBlack.map(o => (
+                    <div key={o.name} className="wp-tc-row">
+                      <span className="wp-opening-name">{o.name}</span>
+                      <span className="wp-tc-games">{o.games.toLocaleString()} games</span>
+                      <div className="wp-tc-wdl">
+                        <span style={{ color: WIN_COLOR  }}>{o.wins}W</span>
+                        <span style={{ color: DRAW_COLOR }}>{o.draws}D</span>
+                        <span style={{ color: LOSS_COLOR }}>{o.losses}L</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="wp-tc-bar-outer">
+                        <div className="wp-tc-bar-fill" style={{ width: `${o.win_rate}%`, background: '#5B9BD5' }} />
+                      </div>
+                      <span className="wp-tc-wr" style={{ color: '#5B9BD5' }}>{o.win_rate}%</span>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
