@@ -1,6 +1,6 @@
 .cp-root {
   min-height: 100%;
-  padding: 24px 28px;
+  padding: 28px 32px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -20,45 +20,43 @@
 
 .cp-fen-input {
   flex: 1;
-  font-family: 'SF Mono', Menlo, monospace;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
   font-size: 13px;
   background: var(--bg-2);
   border: 1px solid var(--border-mid);
   color: var(--cream);
   border-radius: var(--radius);
-  padding: 10px 14px;
-  transition: border-color 0.15s;
+  padding: 11px 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .cp-fen-input:focus {
   outline: none;
   border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-lt);
 }
 
-.cp-fen-error {
-  border-color: var(--red) !important;
-}
-
-.cp-fen-err-msg {
-  font-size: 12px;
-  color: #e57373;
-  font-weight: 600;
-}
+.cp-fen-error { border-color: var(--red) !important; }
+.cp-fen-err-msg { font-size: 12px; color: #e57373; font-weight: 600; }
 
 .cp-load-btn {
-  background: var(--green);
+  background: var(--btn-grad);
   color: #fff;
   border: none;
-  padding: 10px 20px;
+  padding: 11px 22px;
   border-radius: var(--radius);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: transform 0.14s, box-shadow 0.14s;
   white-space: nowrap;
+  box-shadow: 0 2px 12px var(--btn-glow);
 }
 
-.cp-load-btn:hover { background: var(--green-d); }
+.cp-load-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--btn-glow);
+}
 
 .cp-examples {
   display: flex;
@@ -70,18 +68,19 @@
   background: var(--bg-2);
   border: 1px solid var(--border);
   color: var(--muted);
-  padding: 5px 12px;
+  padding: 5px 14px;
   border-radius: 100px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   white-space: nowrap;
 }
 
 .cp-example-chip:hover {
-  border-color: var(--caramel);
+  border-color: var(--border-mid);
   color: var(--cream);
+  background: var(--bg-3);
 }
 
 /* ── Main layout ── */
@@ -98,10 +97,7 @@
   gap: 10px;
 }
 
-.cp-eval-bar-wrap {
-  display: flex;
-  align-items: stretch;
-}
+.cp-eval-bar-wrap { display: flex; align-items: stretch; }
 
 .cp-eval-bar-outer {
   width: 12px;
@@ -122,9 +118,7 @@
   transition: height 0.4s ease;
 }
 
-.cp-board-wrap {
-  width: min(520px, calc(100vw - 500px));
-}
+.cp-board-wrap { width: min(520px, calc(100vw - 500px)); }
 
 /* ── Analysis panel ── */
 .cp-panel {
@@ -138,22 +132,36 @@
 .cp-eval-card {
   background: var(--bg-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.cp-eval-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--btn-grad);
+  border-radius: 12px 12px 0 0;
 }
 
 .cp-eval-score {
-  font-size: 36px;
+  font-size: 38px;
   font-weight: 900;
-  font-family: 'SF Mono', Menlo, monospace;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
   letter-spacing: -0.04em;
+  line-height: 1;
+  font-family: 'Syne', 'Inter', sans-serif;
 }
 
-.cp-eval-pos { color: var(--green); }
-.cp-eval-neg { color: var(--red); }
+.cp-eval-pos { color: var(--green); text-shadow: 0 0 20px var(--green-lt); }
+.cp-eval-neg { color: var(--red);   text-shadow: 0 0 20px var(--red-lt); }
 
 .cp-eval-meta {
   display: flex;
@@ -162,30 +170,31 @@
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
 }
 
 .cp-best-move-btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(127,166,80,0.1);
-  border: 1px solid rgba(127,166,80,0.3);
+  background: rgba(127,166,80,0.08);
+  border: 1px solid rgba(127,166,80,0.28);
   border-radius: var(--radius);
-  padding: 10px 14px;
+  padding: 11px 16px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
 
 .cp-best-move-btn:hover {
-  background: rgba(127,166,80,0.18);
+  background: rgba(127,166,80,0.15);
+  box-shadow: 0 0 0 1px var(--green);
 }
 
 .cp-bm-label {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--green);
 }
 
@@ -193,7 +202,7 @@
   font-size: 18px;
   font-weight: 900;
   color: var(--cream);
-  font-family: 'SF Mono', Menlo, monospace;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
 }
 
 .cp-pv {
@@ -205,21 +214,24 @@
 
 .cp-pv-label {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--muted);
   margin-right: 4px;
 }
 
 .cp-pv-move {
   font-size: 12px;
-  font-family: 'SF Mono', Menlo, monospace;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
   color: var(--caramel);
   background: var(--bg-3);
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
+  transition: background 0.1s;
 }
+
+.cp-pv-move:hover { background: var(--bg); }
 
 /* ── Controls ── */
 .cp-controls {
@@ -237,35 +249,34 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
 }
 
 .cp-ctrl-btn:hover:not(:disabled) {
   background: var(--bg-3);
   color: var(--cream);
+  border-color: var(--border-mid);
 }
 
-.cp-ctrl-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
+.cp-ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ── Explorer ── */
 .cp-explorer-card {
   background: var(--bg-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 12px;
+  padding: 14px 16px;
   flex: 1;
+  box-shadow: var(--shadow-card);
 }
 
 .cp-explorer-title {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--muted);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -279,21 +290,17 @@
   letter-spacing: 0;
 }
 
-.cp-explorer-moves {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+.cp-explorer-moves { display: flex; flex-direction: column; gap: 4px; }
 
 .cp-explorer-row {
   display: grid;
   grid-template-columns: 50px 1fr auto auto auto;
   align-items: center;
   gap: 8px;
-  padding: 7px 8px;
+  padding: 7px 10px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
   text-align: left;
   transition: background 0.12s, border-color 0.12s;
@@ -306,16 +313,12 @@
 
 .cp-ex-move {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--cream);
-  font-family: 'SF Mono', Menlo, monospace;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
 }
 
-.cp-ex-games {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 600;
-}
+.cp-ex-games { font-size: 11px; color: var(--muted); font-weight: 600; }
 
 .cp-ex-bar {
   width: 50px;
@@ -331,27 +334,9 @@
   border-radius: 2px;
 }
 
-.cp-ex-wr {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--green);
-  min-width: 32px;
-  text-align: right;
-}
-
-.cp-ex-score {
-  font-size: 11px;
-  font-family: 'SF Mono', Menlo, monospace;
-  color: var(--gold);
-  min-width: 40px;
-  text-align: right;
-}
-
-.cp-no-moves {
-  font-size: 13px;
-  color: var(--muted);
-  font-style: italic;
-}
+.cp-ex-wr { font-size: 11px; font-weight: 700; color: var(--green); min-width: 32px; text-align: right; }
+.cp-ex-score { font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: var(--gold); min-width: 40px; text-align: right; }
+.cp-no-moves { font-size: 13px; color: var(--muted); font-style: italic; }
 
 /* ── Turn indicator ── */
 .cp-turn {
@@ -371,10 +356,11 @@
   border: 2px solid var(--border-mid);
 }
 
-.cp-white { background: var(--cream); border-color: var(--caramel); }
-.cp-black { background: #312E2B; border-color: var(--caramel); }
+.cp-white { background: var(--cream); border-color: var(--caramel); box-shadow: 0 0 8px rgba(240,217,181,0.3); }
+.cp-black { background: #312E2B;  border-color: var(--caramel); }
 
 @media (max-width: 800px) {
+  .cp-root { padding: 18px; }
   .cp-layout { flex-direction: column; }
   .cp-board-wrap { width: 100%; }
   .cp-eval-bar-outer { height: 0; display: none; }
