@@ -79,6 +79,8 @@ class PlayerProfiler:
             
             results_from_player_perspective[player_result] += 1
 
+            result_key = {"win": "wins", "draw": "draws", "loss": "losses"}[player_result]
+
             # Classify time control
             tc_raw = game.headers.get("TimeControl", "") or ""
             try:
@@ -95,13 +97,13 @@ class PlayerProfiler:
                 else:
                     tc_category = "classical"
                 time_control_stats[tc_category]["games"] += 1
-                time_control_stats[tc_category][player_result + "s"] += 1
+                time_control_stats[tc_category][result_key] += 1
 
             # Track W/D/L per opening name
             if opening and opening != "Unknown":
                 stats = opening_stats_white if is_white else opening_stats_black
                 stats[opening]["games"] += 1
-                stats[opening][player_result + "s"] += 1  # "wins", "draws", "losses"
+                stats[opening][result_key] += 1
 
             # Track ELO and openings
             if is_white:
