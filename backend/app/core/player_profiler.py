@@ -31,7 +31,8 @@ class PlayerProfiler:
         first_moves_black = Counter()
         opening_stats_white = defaultdict(lambda: {"games": 0, "wins": 0, "draws": 0, "losses": 0})
         opening_stats_black = defaultdict(lambda: {"games": 0, "wins": 0, "draws": 0, "losses": 0})
-        
+        time_control_stats = defaultdict(lambda: {"games": 0, "wins": 0, "draws": 0, "losses": 0})
+
         games_as_white = 0
         games_as_black = 0
         
@@ -77,6 +78,24 @@ class PlayerProfiler:
                 player_result = "draw"
             
             results_from_player_perspective[player_result] += 1
+
+            # Classify time control
+            tc_raw = game.headers.get("TimeControl", "") or ""
+            try:
+                base_secs = int(tc_raw.split("+")[0]) if tc_raw and tc_raw != "-" else 0
+            except (ValueError, IndexError):
+                base_secs = 0
+            if base_secs > 0:
+                if base_secs < 180:
+                    tc_category = "bullet"
+                elif base_secs < 600:
+                    tc_category = "blitz"
+                elif base_secs < 1800:
+                    tc_category = "rapid"
+                else:
+                    tc_category = "classical"
+                time_control_stats[tc_category]["games"] += 1
+                time_control_stats[tc_category][player_result + "s"] += 1
 
             # Track W/D/L per opening name
             if opening and opening != "Unknown":
@@ -178,6 +197,16 @@ class PlayerProfiler:
             "username": username,
             "top_openings_white": build_opening_stats(opening_stats_white),
             "top_openings_black": build_opening_stats(opening_stats_black),
+            "time_controls": {
+                k: {
+                    "games": v["games"],
+                    "wins": v["wins"],
+                    "draws": v["draws"],
+                    "losses": v["losses"],
+                    "win_rate": round(v["wins"] / v["games"] * 100) if v["games"] > 0 else 0,
+                }
+                for k, v in time_control_stats.items()
+            },
         }
     
     @staticmethod
