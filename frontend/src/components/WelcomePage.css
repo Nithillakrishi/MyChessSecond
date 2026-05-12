@@ -74,6 +74,9 @@
 .wp-charts-row {
   display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap;
 }
+.wp-charts-row + .wp-charts-row {
+  margin-top: 16px;
+}
 .wp-chart-card {
   background: var(--bg-2); border: 1px solid var(--border);
   border-radius: 12px; padding: 18px 20px; min-width: 180px;
