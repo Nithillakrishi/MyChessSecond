@@ -40,11 +40,15 @@ class PlayerProfiler:
             white_player = game.headers.get("White", "").lower().strip()
             black_player = game.headers.get("Black", "").lower().strip()
             result = game.headers.get("Result", "*")
-            opening = game.headers.get("Opening", "Unknown")
-            
-            # Handle "None" string from Chess.com API
-            if opening == "None" or not opening:
-                opening = "Unknown"
+            opening = game.headers.get("Opening", "") or ""
+            if not opening or opening == "None":
+                # Chess.com doesn't send Opening header — derive from ECOUrl
+                eco_url = game.headers.get("ECOUrl", "") or ""
+                if eco_url:
+                    slug = eco_url.rstrip("/").split("/")[-1]
+                    opening = slug.replace("-", " ")
+                else:
+                    opening = "Unknown"
             
             eco = game.headers.get("ECO", "")
             
