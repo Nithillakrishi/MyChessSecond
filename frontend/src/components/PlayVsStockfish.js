@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
-import { detectOpeningFromGame } from '../utils/openingDetector';
+import { detectOpeningByMoves } from '../utils/openingDetector';
 import './PlayVsStockfish.css';
 
 const LEVELS = [
@@ -281,7 +281,7 @@ export default function PlayVsStockfish() {
           </div>
 
           {status && <div className="pvs-check-banner">{status}</div>}
-          <OpeningBadge opening={detectOpeningFromGame(game)} />
+          <OpeningBadge opening={detectOpeningByMoves(moveHistory)} />
         </div>
 
         {/* Side panel */}

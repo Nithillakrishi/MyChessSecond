@@ -4,7 +4,7 @@ import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
 import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
-import { detectOpeningFromGame } from '../utils/openingDetector';
+import { detectOpeningByMoves } from '../utils/openingDetector';
 import './InteractiveCoach.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -175,6 +175,7 @@ function WinBar({ wins, draws, losses }) {
 export default function InteractiveCoach({ username, preferences, color, onReset }) {
   const { dark: boardDark, light: boardLight } = useBoardColors();
   const [game, setGame] = useState(new Chess());
+  const [sanHistory, setSanHistory] = useState([]);
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [mentorData, setMentorData] = useState(null);
   const [mentorLoading, setMentorLoading] = useState(false);
@@ -213,7 +214,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
       let move;
       if (san)       move = copy.move(san);
       else if (from) move = copy.move({ from, to, promotion: 'q' });
-      if (move) { setGame(copy); setSelectedSquare(null); return true; }
+      if (move) { setGame(copy); setSanHistory(h => [...h, move.san]); setSelectedSquare(null); return true; }
     } catch (err) { console.error('Move error:', err.message); }
     return false;
   }, [game]);
@@ -232,8 +233,8 @@ export default function InteractiveCoach({ username, preferences, color, onReset
 
   const onPieceDrop = (src, tgt) => applyMove(src, tgt);
   const playMove    = (san) => applyMove(null, null, san);
-  const handleUndo  = () => { const c = new Chess(game.fen()); c.undo(); setGame(c); setSelectedSquare(null); };
-  const resetBoard  = () => { setGame(new Chess()); setSelectedSquare(null); };
+  const handleUndo  = () => { const c = new Chess(game.fen()); c.undo(); setGame(c); setSanHistory(h => h.slice(0, -1)); setSelectedSquare(null); };
+  const resetBoard  = () => { setGame(new Chess()); setSanHistory([]); setSelectedSquare(null); };
 
   // Eval bar — Stockfish score is always from side-to-move's perspective
   const adjustedScore = isWhiteTurn ? sfInfo.score : -sfInfo.score;
@@ -374,7 +375,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
           />
         </div>
 
-        <OpeningBadge opening={detectOpeningFromGame(game)} />
+        <OpeningBadge opening={detectOpeningByMoves(sanHistory)} />
 
         <div className="move-history">
           {history.length === 0

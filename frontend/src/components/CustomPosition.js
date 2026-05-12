@@ -4,7 +4,7 @@ import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
 import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
-import { detectOpeningFromGame } from '../utils/openingDetector';
+import { detectOpeningByMoves } from '../utils/openingDetector';
 import './CustomPosition.css';
 
 const API_BASE = 'http://localhost:8000';
@@ -96,6 +96,7 @@ export default function CustomPosition() {
   const [fenError, setFenError]  = useState('');
   const [game, setGame]           = useState(new Chess());
   const [fen, setFen]             = useState(STARTING_FEN);
+  const [sanHistory, setSanHistory] = useState([]);
   const [lastMove, setLastMove]   = useState(null);
   const [explorerMoves, setExplorerMoves] = useState([]);
   const [explorerLoading, setExplorerLoading] = useState(false);
@@ -110,6 +111,7 @@ export default function CustomPosition() {
       setFenError('');
       setLastMove(null);
       setExplorerMoves([]);
+      setSanHistory([]);
       analyse(g.fen());
       fetchExplorer(g.fen());
     } catch {
@@ -144,6 +146,7 @@ export default function CustomPosition() {
     setLastMove({ from: move.from, to: move.to });
     setFenError('');
     setExplorerMoves([]);
+    setSanHistory(h => [...h, move.san]);
     analyse(g.fen());
     fetchExplorer(g.fen());
     return true;
@@ -159,6 +162,7 @@ export default function CustomPosition() {
     setFenInput(g.fen());
     setLastMove({ from: m.from, to: m.to });
     setExplorerMoves([]);
+    setSanHistory(h => [...h, m.san]);
     analyse(g.fen());
     fetchExplorer(g.fen());
   }
@@ -168,10 +172,8 @@ export default function CustomPosition() {
     const g = new Chess(game.fen());
     let m;
     if (uciMove.length >= 4 && uciMove[0].match(/[a-h]/) && uciMove[2].match(/[a-h]/)) {
-      // UCI move
       m = g.move({ from: uciMove.slice(0, 2), to: uciMove.slice(2, 4), promotion: uciMove[4] || 'q' });
     } else {
-      // SAN move
       try { m = g.move(uciMove); } catch { return; }
     }
     if (!m) return;
@@ -180,6 +182,7 @@ export default function CustomPosition() {
     setFenInput(g.fen());
     setLastMove({ from: m.from, to: m.to });
     setExplorerMoves([]);
+    setSanHistory(h => [...h, m.san]);
     analyse(g.fen());
     fetchExplorer(g.fen());
   }
@@ -192,6 +195,7 @@ export default function CustomPosition() {
     setFenInput(g.fen());
     setLastMove(null);
     setExplorerMoves([]);
+    setSanHistory(h => h.slice(0, -1));
     analyse(g.fen());
     fetchExplorer(g.fen());
   }
@@ -259,7 +263,7 @@ export default function CustomPosition() {
 
         {/* Analysis panel */}
         <div className="cp-panel">
-          <OpeningBadge opening={detectOpeningFromGame(game)} />
+          <OpeningBadge opening={detectOpeningByMoves(sanHistory)} />
           {/* Eval */}
           <div className="cp-eval-card">
             <div className={`cp-eval-score ${evalPositive ? 'cp-eval-pos' : 'cp-eval-neg'}`}>

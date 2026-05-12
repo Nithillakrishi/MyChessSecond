@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
-import { detectOpeningFromGame } from '../utils/openingDetector';
+import { detectOpeningByMoves } from '../utils/openingDetector';
 import './EngineTraining.css';
 
 function useMultiPV() {
@@ -230,7 +230,7 @@ export default function EngineTraining() {
             </div>
           </div>
 
-          <OpeningBadge opening={detectOpeningFromGame(game)} />
+          <OpeningBadge opening={detectOpeningByMoves(history)} />
 
           {/* Move history */}
           <div className="et-history">
