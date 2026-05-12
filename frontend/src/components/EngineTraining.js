@@ -8,10 +8,10 @@ import './EngineTraining.css';
 
 function useMultiPV() {
   const engRef = useRef(null);
-  const [lines, setLines] = useState([null, null, null]); // 3 PV lines
+  const [lines, setLines] = useState([null, null, null, null, null]); // 5 PV lines
   const [score, setScore] = useState(0);
   const [ready, setReady] = useState(false);
-  const pendingRef = useRef({ 1: null, 2: null, 3: null });
+  const pendingRef = useRef({ 1: null, 2: null, 3: null, 4: null, 5: null });
 
   useEffect(() => {
     const eng = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
@@ -38,22 +38,18 @@ function useMultiPV() {
 
         pendingRef.current[n] = { evalScore, pvMoves };
 
-        // After receiving all 3 lines, commit
-        if (pendingRef.current[1] && pendingRef.current[2] && pendingRef.current[3]) {
-          const newLines = [
-            pendingRef.current[1],
-            pendingRef.current[2],
-            pendingRef.current[3],
-          ];
+        // After receiving all 5 lines, commit
+        if (pendingRef.current[1] && pendingRef.current[2] && pendingRef.current[3] && pendingRef.current[4] && pendingRef.current[5]) {
+          const newLines = [1,2,3,4,5].map(i => pendingRef.current[i]);
           setLines(newLines);
           if (newLines[0]?.evalScore != null) setScore(newLines[0].evalScore);
-          pendingRef.current = { 1: null, 2: null, 3: null };
+          pendingRef.current = { 1: null, 2: null, 3: null, 4: null, 5: null };
         }
       }
     };
 
     eng.postMessage('uci');
-    eng.postMessage('setoption name MultiPV value 3');
+    eng.postMessage('setoption name MultiPV value 5');
     eng.postMessage('ucinewgame');
     eng.postMessage('isready');
     return () => { eng.postMessage('quit'); eng.terminate(); };
@@ -61,7 +57,7 @@ function useMultiPV() {
 
   const analyse = useCallback((fen) => {
     if (!engRef.current) return;
-    pendingRef.current = { 1: null, 2: null, 3: null };
+    pendingRef.current = { 1: null, 2: null, 3: null, 4: null, 5: null };
     engRef.current.postMessage('stop');
     engRef.current.postMessage(`position fen ${fen}`);
     engRef.current.postMessage('go depth 14');
@@ -273,7 +269,7 @@ export default function EngineTraining() {
           {/* Move history */}
           <div className="et-history">
             {history.length === 0
-              ? <span className="et-history-empty">Make a move — engine will analyse 3 lines</span>
+              ? <span className="et-history-empty">Play a move to begin</span>
               : history.map((m, i) => (
                   <span key={i} className="et-hist-move">
                     {i % 2 === 0 && <span className="et-hist-num">{Math.floor(i/2)+1}.</span>}
@@ -303,7 +299,7 @@ export default function EngineTraining() {
           </div>
 
           <div className="et-pv-list">
-            {[1, 2, 3].map(n => (
+            {[1, 2, 3, 4, 5].map(n => (
               <PVLine
                 key={n}
                 line={lines[n - 1]}
@@ -312,11 +308,6 @@ export default function EngineTraining() {
                 isWhiteTurn={isWhiteTurn}
               />
             ))}
-          </div>
-
-          <div className="et-tip">
-            <span className="et-tip-icon">💡</span>
-            Play a move on the board — the engine re-analyses instantly. Drag pieces to explore variations.
           </div>
         </div>
       </div>
