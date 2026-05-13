@@ -3,10 +3,14 @@ Main FastAPI application
 """
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Tuple
 import json
 import os
+
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 from app.core.game_fetcher import ChessDotComFetcher, LichessFetcher
 from app.core.pgn_parser import PGNParser
@@ -550,6 +554,130 @@ async def opponent_moves(username: str, source: str = "chess.com", fen: str = ""
 
     moves.sort(key=lambda x: x["total"], reverse=True)
     return {"moves": moves[:10], "total_games": len(opp_games)}
+
+
+# ─────────────────────────────────────────────────────────
+#  AI OPENING COACH — Claude-powered endpoints
+# ─────────────────────────────────────────────────────────
+
+class CoachChatRequest(BaseModel):
+    username: str
+    opening_name: str
+    opening_eco: str
+    opening_moves: str          # space-separated SAN moves
+    chat_history: List[Dict]    # [{role, content}, ...]
+    user_message: str
+    player_profile: Optional[Dict] = None
+
+class SaveSessionRequest(BaseModel):
+    username: str
+    opening_name: str
+    opening_eco: str
+    opening_moves: str
+    chat_history: List[Dict]
+    board_move_index: int
+    notes: Dict
+    session_id: Optional[int] = None
+
+def _build_system_prompt(opening_name: str, opening_eco: str, opening_moves: str,
+                          player_profile: Optional[Dict]) -> str:
+    profile_text = ""
+    if player_profile:
+        total = player_profile.get("total_games", 0)
+        wins  = player_profile.get("wins", 0)
+        wr    = f"{round(wins/total*100)}%" if total else "N/A"
+        style = player_profile.get("dominant_style", "Unknown")
+        tc    = player_profile.get("time_controls", {})
+        strengths, weaknesses = [], []
+        for pt, s in player_profile.get("position_type_stats", {}).items():
+            r = s.get("win_rate", 0)
+            if r >= 60: strengths.append(f"{pt} ({r:.0f}%)")
+            elif r < 40: weaknesses.append(f"{pt} ({r:.0f}%)")
+        profile_text = f"""
+Player Profile:
+- Username: {player_profile.get('username', 'Player')}
+- Overall win rate: {wr} across {total} games
+- Dominant style: {style}
+- Strong positions: {', '.join(strengths[:3]) or 'N/A'}
+- Weak positions: {', '.join(weaknesses[:3]) or 'N/A'}
+"""
+
+    return f"""You are an elite chess opening coach with grandmaster-level knowledge of all openings, their history, strategic ideas, and famous practitioners.
+
+{profile_text}
+Selected Opening: {opening_name} (ECO: {opening_eco})
+Move sequence: {opening_moves}
+
+Your teaching style:
+- Be enthusiastic, clear, and precise. Use chess notation naturally (e.g. "after 3.Bb5").
+- On the FIRST message: give a vivid 3-4 sentence introduction to the opening — its character, the key strategic idea, and 2-3 world-class players famous for it. Then in 2-3 sentences honestly assess whether this opening suits the player's profile above (or note you have no profile data).
+- On subsequent messages: teach move-by-move motives, middlegame plans, pawn structures, and typical endgame tendencies. Be specific and instructive.
+- When asked "why is move X played?", answer that specific question concisely and accurately.
+- Keep each response to 3-6 short paragraphs max. No bullet-point walls — teach like a human coach.
+"""
+
+@app.post("/coach/chat")
+async def coach_chat(request: CoachChatRequest):
+    import anthropic as ac
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
+
+    client = ac.Anthropic(api_key=api_key)
+    system = _build_system_prompt(
+        request.opening_name, request.opening_eco,
+        request.opening_moves, request.player_profile
+    )
+
+    messages = list(request.chat_history)
+    messages.append({"role": "user", "content": request.user_message})
+
+    def generate():
+        with client.messages.stream(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            system=system,
+            messages=messages,
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
+
+    return StreamingResponse(generate(), media_type="text/plain")
+
+
+@app.post("/coach/session/save")
+async def save_session(req: SaveSessionRequest):
+    from app.database import save_coach_session
+    sid = save_coach_session(
+        req.username, req.opening_name, req.opening_eco,
+        req.opening_moves, req.chat_history, req.board_move_index,
+        req.notes, req.session_id
+    )
+    return {"session_id": sid, "message": "Session saved"}
+
+
+@app.get("/coach/sessions")
+async def list_sessions(username: str):
+    from app.database import list_coach_sessions
+    return {"sessions": list_coach_sessions(username)}
+
+
+@app.get("/coach/session/{session_id}")
+async def get_session(session_id: int, username: str):
+    from app.database import get_coach_session
+    s = get_coach_session(session_id, username)
+    if not s:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return s
+
+
+@app.delete("/coach/session/{session_id}")
+async def delete_session(session_id: int, username: str):
+    from app.database import delete_coach_session
+    ok = delete_coach_session(session_id, username)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"message": "Session deleted"}
 
 
 @app.on_event("startup")

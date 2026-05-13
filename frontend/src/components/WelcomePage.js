@@ -4,10 +4,17 @@ import './WelcomePage.css';
 const TC_ICONS  = { bullet: '⚡', blitz: '🔥', rapid: '⏱', classical: '♟' };
 const TC_COLORS = { bullet: '#E58B00', blitz: '#7FA650', rapid: '#5B9BD5', classical: '#9B59B6' };
 
-// Semantic data colors — do NOT use --green/--gold/--red so charts stay readable in all themes
+// Semantic data colors for WDL donut — fixed so donut stays readable in all themes
 const WIN_COLOR  = '#7FA650';
 const DRAW_COLOR = '#E58B00';
 const LOSS_COLOR = '#C0392B';
+
+// Win-rate bar class — maps to theme accent/neutral/warm via CSS vars
+function barClass(rate) {
+  if (rate >= 60) return 'bar-good';
+  if (rate <  40) return 'bar-bad';
+  return 'bar-mid';
+}
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -176,10 +183,10 @@ export default function WelcomePage({ username, profile, onSelect, onRefresh }) 
                         <span style={{ color: LOSS_COLOR }}>{v.losses}L</span>
                       </div>
                       <div className="wp-tc-bar-outer">
-                        <div className="wp-tc-bar-fill"
-                          style={{ width: `${v.win_rate}%`, background: TC_COLORS[k] || WIN_COLOR }} />
+                        <div className={`wp-tc-bar-fill ${barClass(v.win_rate)}`}
+                          style={{ width: `${v.win_rate}%` }} />
                       </div>
-                      <span className="wp-tc-wr" style={{ color: WIN_COLOR }}>{v.win_rate}%</span>
+                      <span className={`wp-tc-wr ${barClass(v.win_rate)}`}>{v.win_rate}%</span>
                     </div>
                   ))}
                 </div>
@@ -203,9 +210,10 @@ export default function WelcomePage({ username, profile, onSelect, onRefresh }) 
                         <span style={{ color: LOSS_COLOR }}>{o.losses}L</span>
                       </div>
                       <div className="wp-tc-bar-outer">
-                        <div className="wp-tc-bar-fill" style={{ width: `${o.win_rate}%`, background: WIN_COLOR }} />
+                        <div className={`wp-tc-bar-fill ${barClass(o.win_rate)}`}
+                          style={{ width: `${o.win_rate}%` }} />
                       </div>
-                      <span className="wp-tc-wr" style={{ color: WIN_COLOR }}>{o.win_rate}%</span>
+                      <span className={`wp-tc-wr ${barClass(o.win_rate)}`}>{o.win_rate}%</span>
                     </div>
                   ))}
                 </div>
@@ -229,9 +237,10 @@ export default function WelcomePage({ username, profile, onSelect, onRefresh }) 
                         <span style={{ color: LOSS_COLOR }}>{o.losses}L</span>
                       </div>
                       <div className="wp-tc-bar-outer">
-                        <div className="wp-tc-bar-fill" style={{ width: `${o.win_rate}%`, background: '#5B9BD5' }} />
+                        <div className={`wp-tc-bar-fill ${barClass(o.win_rate)}`}
+                          style={{ width: `${o.win_rate}%` }} />
                       </div>
-                      <span className="wp-tc-wr" style={{ color: '#5B9BD5' }}>{o.win_rate}%</span>
+                      <span className={`wp-tc-wr ${barClass(o.win_rate)}`}>{o.win_rate}%</span>
                     </div>
                   ))}
                 </div>

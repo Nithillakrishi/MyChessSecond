@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import GameImporter from './components/GameImporter';
 import Questionnaire from './components/Questionnaire';
-import InteractiveCoach from './components/InteractiveCoach';
+import OpeningCoach from './components/OpeningCoach';
 import LandingPage, { Logo } from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import AppLayout from './components/AppLayout';
@@ -174,10 +174,6 @@ function App() {
 
   /* ── Mode selection ── */
   const handleModeSelect = (mode) => {
-    if (mode === 'coach' && !repertoireData) {
-      handleProfileAccepted();
-      return;
-    }
     setActiveMode(mode);
   };
 
@@ -284,12 +280,10 @@ function App() {
             />
           )}
 
-          {activeMode === 'coach' && repertoireData && (
-            <InteractiveCoach
+          {activeMode === 'coach' && (
+            <OpeningCoach
               username={username}
-              preferences={repertoireData.preferences}
-              color={repertoireData.color}
-              onReset={() => setActiveMode('welcome')}
+              playerProfile={playerProfile}
             />
           )}
 
