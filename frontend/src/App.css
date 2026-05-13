@@ -76,7 +76,7 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--btn-grad);
+  background: linear-gradient(90deg, #FFD700, #FF8C42, var(--green));
   border-radius: 20px 20px 0 0;
 }
 
@@ -94,10 +94,11 @@
   height: 44px;
   border-radius: 50%;
   border: 3px solid var(--border-mid);
-  border-left-color: var(--green);
+  border-top-color: #FFD700;
+  border-right-color: #FF8C42;
   animation: spin 0.75s linear infinite;
   margin: 0 auto 20px;
-  box-shadow: 0 0 16px var(--green-lt);
+  box-shadow: 0 0 20px rgba(255,215,0,0.25);
 }
 
 .progress-bar-container {

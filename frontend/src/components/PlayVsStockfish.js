@@ -5,6 +5,7 @@ import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpeningByMoves } from '../utils/openingDetector';
 import './PlayVsStockfish.css';
+import { CHESS_PIECES } from './boardPieces';
 
 const LEVELS = [
   { label: 'Beginner',     depth: 1,  elo: '~500'  },
@@ -291,7 +292,7 @@ export default function PlayVsStockfish() {
         {/* Board column */}
         <div className="pvs-board-col">
           <div className="pvs-board-wrap">
-            <Chessboard
+            <Chessboard customPieces={CHESS_PIECES}
               position={fen}
               onPieceDrop={onDrop}
               onSquareClick={onSquareClick}

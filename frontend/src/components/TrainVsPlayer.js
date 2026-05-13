@@ -6,6 +6,7 @@ import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpening, detectOpeningByMoves } from '../utils/openingDetector';
 import './TrainVsPlayer.css';
+import { CHESS_PIECES } from './boardPieces';
 
 const API_BASE = 'http://localhost:8000';
 const SOURCES = [
@@ -357,7 +358,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
           <div className="tvp-board-row">
             <EvalBar score={score} playerColor={playerColor} isWhiteTurn={game.turn() === 'w'} />
             <div className="tvp-board-wrap" style={{ width: boardSize }}>
-              <Chessboard
+              <Chessboard customPieces={CHESS_PIECES}
                 position={fen}
                 onPieceDrop={onDrop}
                 boardOrientation={playerColor}

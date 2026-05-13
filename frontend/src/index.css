@@ -1,233 +1,237 @@
 /* ═══════════════════════════════════════════════════════════
-   THEME 1 — CLASSIC WOOD
-   Warm walnut darks  ·  Amber + Olive Green  (warm-split)
+   THEME 1 — MIDNIGHT PURPLE  (default)
+   Near-black · Electric violet · Hot pink
 ═══════════════════════════════════════════════════════════ */
 :root,
 [data-theme="classic"] {
-  --bg:         linear-gradient(160deg, #1E1A15 0%, #2A2118 50%, #221D15 100%);
-  --bg-solid:   #2A2118;
-  --bg-2:       #322820;
-  --bg-3:       #3E3228;
-  --bg-nav:     rgba(42,33,24,0.92);
+  --bg:         linear-gradient(160deg, #0A080F 0%, #110B1E 50%, #0D0916 100%);
+  --bg-solid:   #110B1E;
+  --bg-2:       #180E2A;
+  --bg-3:       #221438;
+  --bg-nav:     rgba(11,8,20,0.96);
 
-  --cream:      #F0D9B5;
-  --caramel:    #C49A6C;
-  --muted:      #9A7A54;
+  --cream:      #FFFFFF;
+  --caramel:    #C4B5FD;
+  --muted:      #8B7FC4;
 
-  --green:      #7FA650;
-  --green-d:    #5C7A38;
-  --green-lt:   rgba(127,166,80,0.18);
+  --green:      #8B5CF6;
+  --green-d:    #7C3AED;
+  --green-lt:   rgba(139,92,246,0.20);
 
-  --gold:       #E58B00;
-  --gold-d:     #B86E00;
-  --gold-lt:    rgba(229,139,0,0.18);
+  --gold:       #EC4899;
+  --gold-d:     #DB2777;
+  --gold-lt:    rgba(236,72,153,0.20);
 
-  --red:        #C0392B;
-  --red-lt:     rgba(192,57,43,0.18);
+  --red:        #F43F5E;
+  --red-lt:     rgba(244,63,94,0.18);
 
-  --border:     rgba(196,154,108,0.18);
-  --border-mid: rgba(196,154,108,0.38);
-  --border-hi:  rgba(196,154,108,0.62);
+  --border:     rgba(139,92,246,0.16);
+  --border-mid: rgba(139,92,246,0.38);
+  --border-hi:  rgba(139,92,246,0.65);
 
-  --btn-grad:   linear-gradient(135deg, #7FA650 0%, #5C7A38 100%);
-  --btn-glow:   rgba(127,166,80,0.38);
+  --btn-grad:   linear-gradient(135deg, #8B5CF6 0%, #C026D3 55%, #EC4899 100%);
+  --btn-glow:   rgba(139,92,246,0.50);
 
-  --sidebar-bg: linear-gradient(180deg, #2C2216 0%, #241C12 100%);
+  --sidebar-bg: linear-gradient(180deg, #140B22 0%, #0E0818 100%);
 
-  --glass:      rgba(42,33,24,0.55);
-  --glass-border: rgba(196,154,108,0.2);
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.35);
-  --shadow-glow: 0 0 40px rgba(127,166,80,0.12);
+  --glass:        rgba(17,11,30,0.68);
+  --glass-border: rgba(139,92,246,0.28);
+  --shadow-card:  0 4px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(139,92,246,0.08);
+  --shadow-glow:  0 0 60px rgba(139,92,246,0.22);
 
   --radius: 10px;
   --radius-lg: 16px;
-  --win:    #7FA650;
-  --draw:   #E58B00;
-  --loss:   #C0392B;
+  --win:    #10B981;
+  --draw:   #F59E0B;
+  --loss:   #EF4444;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   THEME 2 — SCARLET & GOLD
+   THEME 2 — SCARLET NOVA
+   Near-black red · Electric crimson · Amber fire
 ═══════════════════════════════════════════════════════════ */
 [data-theme="crimson"] {
-  --bg:         linear-gradient(160deg, #1A0508 0%, #250A0C 50%, #1C0608 100%);
-  --bg-solid:   #250A0C;
-  --bg-2:       #2E0C10;
-  --bg-3:       #3C1015;
-  --bg-nav:     rgba(37,10,12,0.94);
+  --bg:         linear-gradient(160deg, #0F0508 0%, #1C080A 50%, #160608 100%);
+  --bg-solid:   #1C080A;
+  --bg-2:       #240A0D;
+  --bg-3:       #321014;
+  --bg-nav:     rgba(20,6,8,0.96);
 
-  --cream:      #FAF0E0;
-  --caramel:    #D4A060;
-  --muted:      #A07040;
+  --cream:      #FFFFFF;
+  --caramel:    #FCA5A5;
+  --muted:      #C08080;
 
-  --green:      #E53E3E;
-  --green-d:    #C02828;
-  --green-lt:   rgba(229,62,62,0.20);
+  --green:      #EF4444;
+  --green-d:    #DC2626;
+  --green-lt:   rgba(239,68,68,0.20);
 
-  --gold:       #F4C430;
-  --gold-d:     #D4A010;
-  --gold-lt:    rgba(244,196,48,0.20);
+  --gold:       #F59E0B;
+  --gold-d:     #D97706;
+  --gold-lt:    rgba(245,158,11,0.20);
 
-  --red:        #E53E3E;
-  --red-lt:     rgba(229,62,62,0.18);
+  --red:        #EF4444;
+  --red-lt:     rgba(239,68,68,0.18);
 
-  --border:     rgba(229,62,62,0.16);
-  --border-mid: rgba(244,196,48,0.30);
-  --border-hi:  rgba(244,196,48,0.55);
+  --border:     rgba(239,68,68,0.16);
+  --border-mid: rgba(245,158,11,0.38);
+  --border-hi:  rgba(245,158,11,0.65);
 
-  --btn-grad:   linear-gradient(135deg, #E53E3E 0%, #C02828 100%);
-  --btn-glow:   rgba(229,62,62,0.40);
+  --btn-grad:   linear-gradient(135deg, #EF4444 0%, #F97316 55%, #F59E0B 100%);
+  --btn-glow:   rgba(239,68,68,0.50);
 
-  --sidebar-bg: linear-gradient(180deg, #2D0C10 0%, #220810 100%);
+  --sidebar-bg: linear-gradient(180deg, #20080A 0%, #160608 100%);
 
-  --glass:      rgba(37,10,12,0.55);
-  --glass-border: rgba(229,62,62,0.18);
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 40px rgba(229,62,62,0.12);
+  --glass:        rgba(28,8,10,0.68);
+  --glass-border: rgba(239,68,68,0.26);
+  --shadow-card:  0 4px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(239,68,68,0.08);
+  --shadow-glow:  0 0 60px rgba(239,68,68,0.22);
 
   --radius: 10px;
   --radius-lg: 16px;
-  --win:    #7FA650;
-  --draw:   #E58B00;
-  --loss:   #C0392B;
+  --win:    #10B981;
+  --draw:   #F59E0B;
+  --loss:   #EF4444;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   THEME 3 — NAVY & FLAME
+   THEME 3 — CYBER OCEAN
+   Near-black blue · Electric cyan · Vivid orange
 ═══════════════════════════════════════════════════════════ */
 [data-theme="ocean"] {
-  --bg:         linear-gradient(160deg, #080F22 0%, #0E1A38 50%, #0A1428 100%);
-  --bg-solid:   #0E1A38;
-  --bg-2:       #122040;
-  --bg-3:       #1A2D54;
-  --bg-nav:     rgba(14,26,56,0.94);
+  --bg:         linear-gradient(160deg, #030B18 0%, #061422 50%, #040E1C 100%);
+  --bg-solid:   #061422;
+  --bg-2:       #081C30;
+  --bg-3:       #0E2844;
+  --bg-nav:     rgba(4,10,20,0.96);
 
-  --cream:      #E8F4FF;
-  --caramel:    #7AAAC8;
-  --muted:      #5A8AAA;
+  --cream:      #E8F8FF;
+  --caramel:    #7DD3FC;
+  --muted:      #60A5C8;
 
   --green:      #0EA5E9;
   --green-d:    #0284C7;
-  --green-lt:   rgba(14,165,233,0.18);
+  --green-lt:   rgba(14,165,233,0.20);
 
   --gold:       #F97316;
   --gold-d:     #EA6000;
   --gold-lt:    rgba(249,115,22,0.20);
 
-  --red:        #F87171;
-  --red-lt:     rgba(248,113,113,0.18);
+  --red:        #F43F5E;
+  --red-lt:     rgba(244,63,94,0.18);
 
   --border:     rgba(14,165,233,0.16);
-  --border-mid: rgba(249,115,22,0.30);
-  --border-hi:  rgba(249,115,22,0.55);
+  --border-mid: rgba(14,165,233,0.38);
+  --border-hi:  rgba(14,165,233,0.68);
 
-  --btn-grad:   linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%);
-  --btn-glow:   rgba(14,165,233,0.40);
+  --btn-grad:   linear-gradient(135deg, #06B6D4 0%, #0EA5E9 50%, #3B82F6 100%);
+  --btn-glow:   rgba(14,165,233,0.48);
 
-  --sidebar-bg: linear-gradient(180deg, #102240 0%, #0C1A34 100%);
+  --sidebar-bg: linear-gradient(180deg, #081C32 0%, #061422 100%);
 
-  --glass:      rgba(14,26,56,0.55);
-  --glass-border: rgba(14,165,233,0.2);
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 40px rgba(14,165,233,0.12);
+  --glass:        rgba(6,20,34,0.68);
+  --glass-border: rgba(14,165,233,0.28);
+  --shadow-card:  0 4px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(14,165,233,0.08);
+  --shadow-glow:  0 0 60px rgba(14,165,233,0.22);
 
   --radius: 10px;
   --radius-lg: 16px;
-  --win:    #7FA650;
-  --draw:   #E58B00;
-  --loss:   #C0392B;
+  --win:    #10B981;
+  --draw:   #F59E0B;
+  --loss:   #EF4444;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   THEME 4 — VIOLET & LIME
+   THEME 4 — NEON VIOLET
+   Deep purple-black · Vivid purple · Electric lime
 ═══════════════════════════════════════════════════════════ */
 [data-theme="violet"] {
-  --bg:         linear-gradient(160deg, #0E0520 0%, #180A30 50%, #12062A 100%);
-  --bg-solid:   #180A30;
-  --bg-2:       #1E0E38;
-  --bg-3:       #28144A;
-  --bg-nav:     rgba(24,10,48,0.94);
+  --bg:         linear-gradient(160deg, #06030F 0%, #0E0620 50%, #0A0418 100%);
+  --bg-solid:   #0E0620;
+  --bg-2:       #160830;
+  --bg-3:       #200E44;
+  --bg-nav:     rgba(8,4,18,0.96);
 
-  --cream:      #F0E8FF;
-  --caramel:    #A87ED4;
-  --muted:      #8860B0;
+  --cream:      #F5F0FF;
+  --caramel:    #C4B5FD;
+  --muted:      #9575C4;
 
-  --green:      #7C3AED;
-  --green-d:    #6028C8;
-  --green-lt:   rgba(124,58,237,0.20);
+  --green:      #A855F7;
+  --green-d:    #9333EA;
+  --green-lt:   rgba(168,85,247,0.20);
 
-  --gold:       #A3E635;
-  --gold-d:     #84CC16;
-  --gold-lt:    rgba(163,230,53,0.20);
+  --gold:       #84CC16;
+  --gold-d:     #65A30D;
+  --gold-lt:    rgba(132,204,22,0.20);
 
   --red:        #F472B6;
   --red-lt:     rgba(244,114,182,0.18);
 
-  --border:     rgba(124,58,237,0.18);
-  --border-mid: rgba(163,230,53,0.30);
-  --border-hi:  rgba(163,230,53,0.55);
+  --border:     rgba(168,85,247,0.16);
+  --border-mid: rgba(168,85,247,0.38);
+  --border-hi:  rgba(168,85,247,0.68);
 
-  --btn-grad:   linear-gradient(135deg, #7C3AED 0%, #6028C8 100%);
-  --btn-glow:   rgba(124,58,237,0.42);
+  --btn-grad:   linear-gradient(135deg, #A855F7 0%, #EC4899 55%, #F97316 100%);
+  --btn-glow:   rgba(168,85,247,0.52);
 
-  --sidebar-bg: linear-gradient(180deg, #200E3C 0%, #180A30 100%);
+  --sidebar-bg: linear-gradient(180deg, #180A34 0%, #0E0620 100%);
 
-  --glass:      rgba(24,10,48,0.55);
-  --glass-border: rgba(124,58,237,0.22);
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 40px rgba(124,58,237,0.12);
+  --glass:        rgba(14,6,32,0.68);
+  --glass-border: rgba(168,85,247,0.30);
+  --shadow-card:  0 4px 32px rgba(0,0,0,0.58), 0 0 0 1px rgba(168,85,247,0.08);
+  --shadow-glow:  0 0 60px rgba(168,85,247,0.24);
 
   --radius: 10px;
   --radius-lg: 16px;
-  --win:    #7FA650;
-  --draw:   #E58B00;
-  --loss:   #C0392B;
+  --win:    #10B981;
+  --draw:   #F59E0B;
+  --loss:   #EF4444;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   THEME 5 — TEAL & CORAL
+   THEME 5 — EMERALD DARK
+   Near-black green · Vivid emerald · Hot coral
 ═══════════════════════════════════════════════════════════ */
 [data-theme="teal"] {
-  --bg:         linear-gradient(160deg, #051815 0%, #082420 50%, #061C18 100%);
-  --bg-solid:   #082420;
-  --bg-2:       #0C2C26;
-  --bg-3:       #123A32;
-  --bg-nav:     rgba(8,36,32,0.94);
+  --bg:         linear-gradient(160deg, #030C08 0%, #061410 50%, #040E0A 100%);
+  --bg-solid:   #061410;
+  --bg-2:       #081C14;
+  --bg-3:       #0E2A1C;
+  --bg-nav:     rgba(4,12,8,0.96);
 
-  --cream:      #D4F5EE;
-  --caramel:    #5EC4A8;
-  --muted:      #3EA888;
+  --cream:      #E8FFF5;
+  --caramel:    #6EE7B7;
+  --muted:      #50A88A;
 
-  --green:      #0D9488;
-  --green-d:    #0A7068;
-  --green-lt:   rgba(13,148,136,0.20);
+  --green:      #10B981;
+  --green-d:    #059669;
+  --green-lt:   rgba(16,185,129,0.20);
 
-  --gold:       #FB7185;
-  --gold-d:     #E85070;
-  --gold-lt:    rgba(251,113,133,0.20);
+  --gold:       #F43F5E;
+  --gold-d:     #E11D48;
+  --gold-lt:    rgba(244,63,94,0.20);
 
   --red:        #F97316;
   --red-lt:     rgba(249,115,22,0.18);
 
-  --border:     rgba(13,148,136,0.18);
-  --border-mid: rgba(251,113,133,0.32);
-  --border-hi:  rgba(251,113,133,0.58);
+  --border:     rgba(16,185,129,0.16);
+  --border-mid: rgba(16,185,129,0.38);
+  --border-hi:  rgba(16,185,129,0.68);
 
-  --btn-grad:   linear-gradient(135deg, #0D9488 0%, #0A7068 100%);
-  --btn-glow:   rgba(13,148,136,0.40);
+  --btn-grad:   linear-gradient(135deg, #10B981 0%, #06B6D4 55%, #3B82F6 100%);
+  --btn-glow:   rgba(16,185,129,0.48);
 
-  --sidebar-bg: linear-gradient(180deg, #0E302A 0%, #082420 100%);
+  --sidebar-bg: linear-gradient(180deg, #0A1C16 0%, #061410 100%);
 
-  --glass:      rgba(8,36,32,0.55);
-  --glass-border: rgba(13,148,136,0.22);
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 40px rgba(13,148,136,0.12);
+  --glass:        rgba(6,20,16,0.68);
+  --glass-border: rgba(16,185,129,0.28);
+  --shadow-card:  0 4px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(16,185,129,0.08);
+  --shadow-glow:  0 0 60px rgba(16,185,129,0.22);
 
   --radius: 10px;
   --radius-lg: 16px;
-  --win:    #7FA650;
-  --draw:   #E58B00;
-  --loss:   #C0392B;
+  --win:    #10B981;
+  --draw:   #F59E0B;
+  --loss:   #EF4444;
 }
 
 /* ── Base reset ── */

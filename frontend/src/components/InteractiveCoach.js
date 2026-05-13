@@ -6,6 +6,7 @@ import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpeningByMoves } from '../utils/openingDetector';
 import './InteractiveCoach.css';
+import { CHESS_PIECES } from './boardPieces';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -395,7 +396,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
             </div>
           </div>
 
-          <Chessboard
+          <Chessboard customPieces={CHESS_PIECES}
             position={game.fen()}
             onPieceDrop={onPieceDrop}
             onSquareClick={handleSquareClick}

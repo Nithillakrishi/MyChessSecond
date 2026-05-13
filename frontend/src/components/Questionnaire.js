@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import './Questionnaire.css';
+import { CHESS_PIECES } from './boardPieces';
 
 // Correct, distinctive FEN for each position type
 const POSITION_FENS = {
@@ -158,7 +159,7 @@ function Questionnaire({ questions, onSubmit, disabled, username, positionTypes,
               </div>
               
               <div className="position-board-small">
-                <Chessboard
+                <Chessboard customPieces={CHESS_PIECES}
                   position={POSITION_FENS[item.position_type] || POSITION_FENS.Mixed}
                   boardWidth={120}
                   arePiecesDraggable={false}

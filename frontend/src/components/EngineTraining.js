@@ -5,6 +5,7 @@ import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpeningByMoves } from '../utils/openingDetector';
 import './EngineTraining.css';
+import { CHESS_PIECES } from './boardPieces';
 
 function useMultiPV() {
   const engRef = useRef(null);
@@ -251,7 +252,7 @@ export default function EngineTraining() {
             </div>
 
             <div className="et-board-wrap">
-              <Chessboard
+              <Chessboard customPieces={CHESS_PIECES}
                 position={fen}
                 onPieceDrop={onDrop}
                 onSquareClick={onSquareClick}

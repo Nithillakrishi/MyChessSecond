@@ -6,6 +6,7 @@ import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpeningByMoves } from '../utils/openingDetector';
 import './ChessExplorer.css';
+import { CHESS_PIECES } from './boardPieces';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -191,7 +192,7 @@ export default function ChessExplorer() {
             </div>
 
             <div className="ce-board-wrap">
-              <Chessboard
+              <Chessboard customPieces={CHESS_PIECES}
                 position={fen}
                 onPieceDrop={onDrop}
                 onSquareClick={onSquareClick}

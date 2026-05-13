@@ -1,20 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export const THEMES = [
-  { id: 'classic',  name: 'Classic',       swatch: '#E58B00',  desc: 'Walnut & amber' },
-  { id: 'crimson',  name: 'Scarlet & Gold', swatch: '#E53E3E',  desc: 'Red meets gold' },
-  { id: 'ocean',    name: 'Navy & Flame',   swatch: '#0EA5E9',  desc: 'Blue meets orange' },
-  { id: 'violet',   name: 'Violet & Lime',  swatch: '#7C3AED',  desc: 'Purple meets lime' },
-  { id: 'teal',     name: 'Teal & Coral',   swatch: '#0D9488',  desc: 'Teal meets coral' },
+  { id: 'classic',  name: 'Midnight Purple', swatch: '#8B5CF6',  desc: 'Electric violet & pink' },
+  { id: 'crimson',  name: 'Scarlet Nova',    swatch: '#EF4444',  desc: 'Crimson & amber fire' },
+  { id: 'ocean',    name: 'Cyber Ocean',     swatch: '#06B6D4',  desc: 'Cyan & electric blue' },
+  { id: 'violet',   name: 'Neon Violet',     swatch: '#A855F7',  desc: 'Vivid purple & lime' },
+  { id: 'teal',     name: 'Emerald Dark',    swatch: '#10B981',  desc: 'Emerald & hot coral' },
 ];
 
-// Board square colors per theme
+// Board square colors per theme — tuned to match each theme's chrome.
+// classic = Midnight Purple, crimson = Scarlet, ocean = Cyber Ocean,
+// violet = Neon Violet, teal = Emerald Dark.
 export const BOARD_COLORS = {
-  classic: { dark: '#B58863', light: '#F0D9B5' },
-  crimson: { dark: '#8B1A1A', light: '#F5E8D0' },
-  ocean:   { dark: '#1B5480', light: '#E8D5A8' },
-  violet:  { dark: '#5B2D8F', light: '#EDE8F5' },
-  teal:    { dark: '#0D7060', light: '#E0F5F0' },
+  classic: { dark: '#5C3D8F', light: '#E5D8F2' },  // deep violet · lavender cream
+  crimson: { dark: '#8B2424', light: '#F2E0CC' },  // wine red · warm cream
+  ocean:   { dark: '#1D4C7A', light: '#DCE8F2' },  // cobalt · cool cream
+  violet:  { dark: '#6B2BB5', light: '#EAE0F5' },  // royal purple · pale lavender
+  teal:    { dark: '#157760', light: '#DCEFE6' },  // emerald · mint cream
 };
 
 const ThemeContext = createContext(null);

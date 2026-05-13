@@ -4,11 +4,11 @@ import './ThemePicker.css';
 
 // Secondary swatch colors (the "gold" complementary color of each theme)
 const THEME_META = {
-  classic: { a: '#7FA650', b: '#E58B00' },
-  crimson: { a: '#E53E3E', b: '#F4C430' },
-  ocean:   { a: '#0EA5E9', b: '#F97316' },
-  violet:  { a: '#7C3AED', b: '#A3E635' },
-  teal:    { a: '#0D9488', b: '#FB7185' },
+  classic: { a: '#8B5CF6', b: '#EC4899' },
+  crimson: { a: '#EF4444', b: '#F59E0B' },
+  ocean:   { a: '#06B6D4', b: '#3B82F6' },
+  violet:  { a: '#A855F7', b: '#84CC16' },
+  teal:    { a: '#10B981', b: '#F43F5E' },
 };
 
 export default function ThemePicker({ compact = false }) {
