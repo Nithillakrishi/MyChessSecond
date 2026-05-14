@@ -633,14 +633,21 @@ async def coach_chat(request: CoachChatRequest):
     messages.append({"role": "user", "content": request.user_message})
 
     def generate():
-        with client.messages.stream(
-            model="claude-sonnet-4-6",
-            max_tokens=1024,
-            system=system,
-            messages=messages,
-        ) as stream:
-            for text in stream.text_stream:
-                yield text
+        try:
+            with client.messages.stream(
+                model="claude-sonnet-4-6",
+                max_tokens=1024,
+                system=system,
+                messages=messages,
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
+        except Exception as e:
+            err = str(e)
+            if "credit balance is too low" in err or "402" in err:
+                yield "⚠️ The coaching service is temporarily unavailable — the API credit balance needs to be topped up. Please try again later."
+            else:
+                yield f"⚠️ Coach unavailable: {err[:200]}"
 
     return StreamingResponse(generate(), media_type="text/plain")
 
