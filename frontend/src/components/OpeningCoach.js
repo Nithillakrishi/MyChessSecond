@@ -179,8 +179,9 @@ export default function OpeningCoach({ username, playerProfile }) {
   const sendMessageRef        = useRef(null);
   const isStreamingRef        = useRef(false);
   const chatHistoryRef        = useRef([]);
-  const justSelectedRef       = useRef(false);
+  const justSelectedRef        = useRef(false);
   const autoExplainDebounceRef = useRef(null);
+  const lastAutoExplainRef     = useRef(0);
 
   useEffect(() => { treeRef.current      = treeNodes;   }, [treeNodes]);
   useEffect(() => { notesRef.current     = notes;       }, [notes]);
@@ -254,6 +255,10 @@ export default function OpeningCoach({ username, playerProfile }) {
     if (autoExplainDebounceRef.current) clearTimeout(autoExplainDebounceRef.current);
     autoExplainDebounceRef.current = setTimeout(() => {
       if (isStreamingRef.current) return;
+      // Rate-limit: at most one auto-explain every 4 seconds
+      const now = Date.now();
+      if (now - lastAutoExplainRef.current < 4000) return;
+      lastAutoExplainRef.current = now;
       const side = node.depth % 2 === 1 ? 'White' : 'Black';
       const moveNum = Math.ceil(node.depth / 2);
       const moveLine = getPathFromRoot(currentNodeId, treeRef.current)
@@ -533,6 +538,9 @@ export default function OpeningCoach({ username, playerProfile }) {
       setShowSessions(false);
       setSelectedSq(null);
       setLegalTargets([]);
+      // Suppress auto-explain when restoring a session
+      justSelectedRef.current = true;
+      setTimeout(() => { justSelectedRef.current = false; }, 5000);
     } catch {}
   }
 

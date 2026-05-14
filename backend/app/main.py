@@ -618,7 +618,7 @@ Your teaching style:
 
 @app.post("/coach/chat")
 async def coach_chat(request: CoachChatRequest):
-    import httpx, json as _json
+    import httpx
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
@@ -651,7 +651,11 @@ async def coach_chat(request: CoachChatRequest):
             resp.raise_for_status()
             text = resp.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        text = f"⚠️ Coach unavailable: {str(e)[:300]}"
+        err = str(e)
+        if "429" in err or "Too Many Requests" in err:
+            text = "⚠️ The coach is being asked too many questions at once — please wait a few seconds and try again."
+        else:
+            text = f"⚠️ Coach unavailable: {err[:200]}"
 
     async def generate():
         yield text
