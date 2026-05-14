@@ -477,6 +477,9 @@ export default function OpeningCoach({ username, playerProfile }) {
     setNotes(prev => ({ ...prev, [currentNodeId]: noteInput }));
   }
 
+  /* ── Auto-load sessions on mount ──────────────────────── */
+  useEffect(() => { loadSessionList(); }, []); // eslint-disable-line
+
   /* ── Sessions ──────────────────────────────────────────── */
   async function loadSessionList() {
     try {
@@ -635,6 +638,24 @@ export default function OpeningCoach({ username, playerProfile }) {
           <div className="oc-empty-glyph">♜</div>
           <div className="oc-empty-title">Search an opening to begin</div>
           <div className="oc-empty-sub">Type a name above — e.g. "sicilian", "ruy lopez", "king's indian"</div>
+
+          {sessions.length > 0 && (
+            <div className="oc-empty-sessions">
+              <div className="oc-empty-sessions-title">Continue a session</div>
+              <div className="oc-empty-sessions-grid">
+                {sessions.map(s => (
+                  <div key={s.id} className="oc-empty-session-card" onClick={() => loadSession(s.id)}>
+                    <div className="oc-esc-top">
+                      <span className="oc-esc-eco">{s.opening_eco}</span>
+                      <button className="oc-esc-del" onClick={e => { e.stopPropagation(); deleteSession(s.id); }}>✕</button>
+                    </div>
+                    <div className="oc-esc-name">{s.opening_name}</div>
+                    <div className="oc-esc-date">{new Date(s.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="oc-body">
