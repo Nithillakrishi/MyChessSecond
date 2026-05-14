@@ -175,11 +175,17 @@ export default function OpeningCoach({ username, playerProfile }) {
   const engineRef      = useRef(null);
   const engineReadyRef = useRef(false);
   const pendingFenRef  = useRef(null);
-  const lastEvalFenRef = useRef(START_FEN);
-  const sendMessageRef = useRef(null);
+  const lastEvalFenRef        = useRef(START_FEN);
+  const sendMessageRef        = useRef(null);
+  const isStreamingRef        = useRef(false);
+  const chatHistoryRef        = useRef([]);
+  const justSelectedRef       = useRef(false);
+  const autoExplainDebounceRef = useRef(null);
 
-  useEffect(() => { treeRef.current  = treeNodes; }, [treeNodes]);
-  useEffect(() => { notesRef.current = notes;     }, [notes]);
+  useEffect(() => { treeRef.current      = treeNodes;   }, [treeNodes]);
+  useEffect(() => { notesRef.current     = notes;       }, [notes]);
+  useEffect(() => { isStreamingRef.current = isStreaming; }, [isStreaming]);
+  useEffect(() => { chatHistoryRef.current = chatHistory; }, [chatHistory]);
 
   /* ── Stockfish ─────────────────────────────────────────── */
   useEffect(() => {
@@ -237,6 +243,25 @@ export default function OpeningCoach({ username, playerProfile }) {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
+
+  /* ── Auto-explain on move navigation ──────────────────── */
+  useEffect(() => {
+    if (currentNodeId === 'root' || !selectedOpening) return;
+    if (justSelectedRef.current) return;
+    const node = treeRef.current[currentNodeId];
+    if (!node?.san) return;
+
+    if (autoExplainDebounceRef.current) clearTimeout(autoExplainDebounceRef.current);
+    autoExplainDebounceRef.current = setTimeout(() => {
+      if (isStreamingRef.current) return;
+      const side = node.depth % 2 === 1 ? 'White' : 'Black';
+      const moveNum = Math.ceil(node.depth / 2);
+      const moveLine = getPathFromRoot(currentNodeId, treeRef.current)
+        .map(id => treeRef.current[id]?.san).filter(Boolean).join(' ');
+      const prompt = `${side} just played ${node.san} (move ${moveNum}). In 2–3 short paragraphs explain: why this specific move is played here, what strategic idea it follows or prepares, and what both sides should be thinking about next.`;
+      sendMessageRef.current(prompt, chatHistoryRef.current, selectedOpening, moveLine);
+    }, 700);
+  }, [currentNodeId, selectedOpening]); // eslint-disable-line
 
   /* ── goToNode ──────────────────────────────────────────── */
   const goToNode = useCallback((nodeId, nodesOverride) => {
@@ -433,7 +458,12 @@ export default function OpeningCoach({ username, playerProfile }) {
     setChatHistory([]);
     setStreamBuffer('');
     setIsStreaming(false);
-    setTimeout(() => sendMessageRef.current(intro, [], opening, moves.join(' ')), 0);
+    justSelectedRef.current = true;
+    setTimeout(() => {
+      sendMessageRef.current(intro, [], opening, moves.join(' '));
+      // Re-enable auto-explain once the intro response lands (5s safety window)
+      setTimeout(() => { justSelectedRef.current = false; }, 5000);
+    }, 0);
   }, [chess]); // eslint-disable-line
 
   /* ── Notes ─────────────────────────────────────────────── */
