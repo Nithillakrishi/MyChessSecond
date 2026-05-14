@@ -618,36 +618,53 @@ Your teaching style:
 
 @app.post("/coach/chat")
 async def coach_chat(request: CoachChatRequest):
-    import anthropic as ac
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    import httpx, json as _json
+    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
 
-    client = ac.Anthropic(api_key=api_key)
     system = _build_system_prompt(
         request.opening_name, request.opening_eco,
         request.opening_moves, request.player_profile
     )
 
-    messages = list(request.chat_history)
+    messages = [{"role": "system", "content": system}]
+    for msg in request.chat_history:
+        messages.append({"role": msg["role"], "content": msg["content"]})
     messages.append({"role": "user", "content": request.user_message})
+
+    body = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": messages,
+        "max_tokens": 1024,
+        "stream": True,
+    }
 
     def generate():
         try:
-            with client.messages.stream(
-                model="claude-sonnet-4-6",
-                max_tokens=1024,
-                system=system,
-                messages=messages,
-            ) as stream:
-                for text in stream.text_stream:
-                    yield text
+            with httpx.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                json=body,
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=60,
+            ) as resp:
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:].strip()
+                    if not data or data == "[DONE]":
+                        continue
+                    try:
+                        chunk = _json.loads(data)
+                        text = chunk["choices"][0]["delta"].get("content", "")
+                        if text:
+                            yield text
+                    except (KeyError, IndexError, _json.JSONDecodeError):
+                        pass
         except Exception as e:
-            err = str(e)
-            if "credit balance is too low" in err or "402" in err:
-                yield "⚠️ The coaching service is temporarily unavailable — the API credit balance needs to be topped up. Please try again later."
-            else:
-                yield f"⚠️ Coach unavailable: {err[:200]}"
+            yield f"⚠️ Coach unavailable: {str(e)[:300]}"
 
     return StreamingResponse(generate(), media_type="text/plain")
 
