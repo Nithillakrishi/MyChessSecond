@@ -640,31 +640,21 @@ async def coach_chat(request: CoachChatRequest):
         "stream": True,
     }
 
-    def generate():
-        try:
-            with httpx.stream(
-                "POST",
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",
-                json=body,
+                json={**body, "stream": False},
                 headers={"Authorization": f"Bearer {api_key}"},
                 timeout=60,
-            ) as resp:
-                resp.raise_for_status()
-                for line in resp.iter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:].strip()
-                    if not data or data == "[DONE]":
-                        continue
-                    try:
-                        chunk = _json.loads(data)
-                        text = chunk["choices"][0]["delta"].get("content", "")
-                        if text:
-                            yield text
-                    except (KeyError, IndexError, _json.JSONDecodeError):
-                        pass
-        except Exception as e:
-            yield f"⚠️ Coach unavailable: {str(e)[:300]}"
+            )
+            resp.raise_for_status()
+            text = resp.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        text = f"⚠️ Coach unavailable: {str(e)[:300]}"
+
+    async def generate():
+        yield text
 
     return StreamingResponse(generate(), media_type="text/plain")
 
