@@ -19,6 +19,24 @@ export const BOARD_COLORS = {
   teal:    { dark: '#157760', light: '#DCEFE6' },  // emerald · mint cream
 };
 
+// Stockfish arrow base colour per theme — chosen to contrast clearly against the board squares.
+export const ARROW_BASE_COLOR = {
+  classic: '250,204,21',   // bright yellow — pops on purple board
+  crimson: '34,211,238',   // cyan — pops on red board
+  ocean:   '250,204,21',   // bright yellow — pops on blue board
+  violet:  '163,230,53',   // lime — pops on purple board
+  teal:    '250,204,21',   // bright yellow — pops on green board
+};
+
+// Opacity steps: best move → faintest (5th), still clearly visible at every level
+export const ARROW_ALPHAS = [1.0, 0.82, 0.62, 0.45, 0.30];
+
+export function useArrowColors() {
+  const { theme } = useContext(ThemeContext);
+  const rgb = ARROW_BASE_COLOR[theme] || ARROW_BASE_COLOR.classic;
+  return ARROW_ALPHAS.map(a => `rgba(${rgb},${a})`);
+}
+
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {

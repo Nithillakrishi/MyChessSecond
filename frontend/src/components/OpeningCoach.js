@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
-import { useBoardColors } from '../contexts/ThemeContext';
+import { useBoardColors, useArrowColors } from '../contexts/ThemeContext';
 import { CHESS_PIECES } from './boardPieces';
 import openingsData from '../data/openings.json';
 import './OpeningCoach.css';
@@ -95,7 +95,11 @@ function ChatMessage({ msg }) {
     <div className={`oc-msg oc-msg-${msg.role}`}>
       <div className="oc-msg-avatar">{msg.role === 'assistant' ? '♟' : '?'}</div>
       <div className="oc-msg-bubble">
-        {msg.content.split('\n').map((l, i) => <p key={i}>{l}</p>)}
+        {msg.content.split('\n').map((l, i) =>
+          l.startsWith('★')
+            ? <div key={i} className="oc-verdict">{l}</div>
+            : <p key={i}>{l}</p>
+        )}
       </div>
     </div>
   );
@@ -137,8 +141,9 @@ function MoveLine({ startId, nodes, curId, onGoTo, isVar = false }) {
 }
 
 /* ── Main component ──────────────────────────────────────── */
-export default function OpeningCoach({ username, playerProfile }) {
-  const boardColors = useBoardColors();
+export default function OpeningCoach({ username, playerProfile, isActive = true }) {
+  const boardColors  = useBoardColors();
+  const arrowColors  = useArrowColors();
 
   const [query, setQuery]               = useState('');
   const [results, setResults]           = useState([]);
@@ -171,22 +176,30 @@ export default function OpeningCoach({ username, playerProfile }) {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [saveStatus, setSaveStatus]     = useState('');
 
-  const [evalScore, setEvalScore] = useState(null);
-  const engineRef      = useRef(null);
-  const engineReadyRef = useRef(false);
-  const pendingFenRef  = useRef(null);
-  const lastEvalFenRef        = useRef(START_FEN);
+  const [evalScore, setEvalScore]   = useState(null);
+  const [topMoves, setTopMoves]     = useState([]);
+  const [analysisFen, setAnalysisFen] = useState(null); // FEN that topMoves belongs to
+  const [chatOpen, setChatOpen]   = useState(true);
+  const [preloaded, setPreloaded] = useState(null);
+  const explainedNodesRef = useRef(new Set());
+  const playerProfileRef  = useRef(playerProfile);
+  const engineRef        = useRef(null);
+  const engineReadyRef   = useRef(false);
+  const engineBusyRef    = useRef(false); // true while a 'go' is active
+  const listeningRef     = useRef(true);  // false while waiting for bestmove to flush stale lines
+  const startAnalysisRef = useRef(null);  // set once engine worker is ready
+  const pendingFenRef    = useRef(null);
+  const lastEvalFenRef   = useRef(START_FEN);
   const sendMessageRef        = useRef(null);
   const isStreamingRef        = useRef(false);
   const chatHistoryRef        = useRef([]);
   const justSelectedRef        = useRef(false);
-  const autoExplainDebounceRef = useRef(null);
-  const lastAutoExplainRef     = useRef(0);
 
-  useEffect(() => { treeRef.current      = treeNodes;   }, [treeNodes]);
-  useEffect(() => { notesRef.current     = notes;       }, [notes]);
-  useEffect(() => { isStreamingRef.current = isStreaming; }, [isStreaming]);
-  useEffect(() => { chatHistoryRef.current = chatHistory; }, [chatHistory]);
+  useEffect(() => { treeRef.current        = treeNodes;      }, [treeNodes]);
+  useEffect(() => { notesRef.current       = notes;          }, [notes]);
+  useEffect(() => { isStreamingRef.current = isStreaming;    }, [isStreaming]);
+  useEffect(() => { chatHistoryRef.current = chatHistory;    }, [chatHistory]);
+  useEffect(() => { playerProfileRef.current = playerProfile; }, [playerProfile]);
 
   /* ── Stockfish ─────────────────────────────────────────── */
   useEffect(() => {
@@ -196,29 +209,73 @@ export default function OpeningCoach({ username, playerProfile }) {
     engineRef.current = engine;
     engineReadyRef.current = false;
     engine.onerror = () => {};
+    const startAnalysis = (fenToAnalyse) => {
+      lastEvalFenRef.current = fenToAnalyse;
+      setAnalysisFen(fenToAnalyse); // marks which position topMoves belongs to
+      engine.postMessage(`position fen ${fenToAnalyse}`);
+      engine.postMessage('go depth 14');
+      engineBusyRef.current = true;
+      listeningRef.current = true;
+    };
+    startAnalysisRef.current = startAnalysis;
+
     engine.onmessage = (e) => {
       const line = typeof e.data === 'string' ? e.data : '';
-      if (line === 'uciok') { engine.postMessage('ucinewgame'); engine.postMessage('isready'); return; }
+      if (line === 'uciok') {
+        engine.postMessage('setoption name MultiPV value 5');
+        engine.postMessage('ucinewgame');
+        engine.postMessage('isready');
+        return;
+      }
       if (line === 'readyok') {
         engineReadyRef.current = true;
         if (pendingFenRef.current) {
-          engine.postMessage(`position fen ${pendingFenRef.current}`);
-          engine.postMessage('go depth 14');
+          const f = pendingFenRef.current;
           pendingFenRef.current = null;
+          setTopMoves([]);
+          startAnalysis(f);
         }
         return;
       }
+      // bestmove signals the old 'go' has fully stopped — safe to start the next one
+      if (line.startsWith('bestmove')) {
+        engineBusyRef.current = false;
+        if (pendingFenRef.current) {
+          const f = pendingFenRef.current;
+          pendingFenRef.current = null;
+          setTopMoves([]);
+          startAnalysis(f);
+        }
+        return;
+      }
+      // Discard any line emitted after we stopped listening (stale analysis)
+      if (!listeningRef.current) return;
+      // Only use multipv 1 line for eval score
+      const isLine1 = !line.includes('multipv') || line.includes('multipv 1');
       const cp = line.match(/score cp (-?\d+)/);
       const mt = line.match(/score mate (-?\d+)/);
-      if (cp) {
+      if (isLine1 && cp) {
         const turn = lastEvalFenRef.current.split(' ')[1];
         const raw  = parseInt(cp[1]);
         setEvalScore(parseFloat(((turn === 'b' ? -raw : raw) / 100).toFixed(1)));
-      } else if (mt) {
+      } else if (isLine1 && mt) {
         const turn = lastEvalFenRef.current.split(' ')[1];
         const m    = parseInt(mt[1]);
         const norm = turn === 'b' ? -m : m;
         setEvalScore(norm > 0 ? 99 : -99);
+      }
+      const pvMatch = line.match(/multipv (\d+).*?\bpv ([a-h][1-8])([a-h][1-8])/);
+      if (pvMatch) {
+        const rank = parseInt(pvMatch[1]) - 1;
+        const from = pvMatch[2];
+        const to   = pvMatch[3];
+        if (rank >= 0 && rank < 5) {
+          setTopMoves(prev => {
+            const next = [...prev];
+            next[rank] = { from, to };
+            return next;
+          });
+        }
       }
     };
     engine.postMessage('uci');
@@ -229,13 +286,22 @@ export default function OpeningCoach({ username, playerProfile }) {
     const engine = engineRef.current;
     if (!engine) return;
     setEvalScore(null);
-    engine.postMessage('stop');
-    lastEvalFenRef.current = fen;
-    if (engineReadyRef.current) {
-      engine.postMessage(`position fen ${fen}`);
-      engine.postMessage('go depth 14');
-    } else { pendingFenRef.current = fen; }
-  }, [fen]);
+    setTopMoves([]);
+    setAnalysisFen(null); // clear confirmed-FEN so stale topMoves are never rendered
+    // Don't analyse at start position — no opening selected yet
+    if (fen === START_FEN) { pendingFenRef.current = null; listeningRef.current = false; return; }
+    if (!isActive) { pendingFenRef.current = fen; listeningRef.current = false; return; }
+    if (!engineReadyRef.current) { pendingFenRef.current = fen; listeningRef.current = false; return; }
+    if (engineBusyRef.current) {
+      // Immediately stop listening so stale lines from the old analysis are ignored
+      listeningRef.current = false;
+      pendingFenRef.current = fen;
+      engine.postMessage('stop'); // bestmove handler will start the new analysis
+    } else {
+      pendingFenRef.current = null;
+      startAnalysisRef.current?.(fen);
+    }
+  }, [fen, isActive]);
 
   /* ── Search ────────────────────────────────────────────── */
   useEffect(() => { setResults(searchOpenings(query)); }, [query]);
@@ -245,31 +311,21 @@ export default function OpeningCoach({ username, playerProfile }) {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  /* ── Auto-explain on move navigation ──────────────────── */
+  /* ── Show cached theory explanation when navigating main-line moves ── */
   useEffect(() => {
-    if (currentNodeId === 'root' || !selectedOpening) return;
-    if (justSelectedRef.current) return;
+    if (!preloaded || currentNodeId === 'root' || !selectedOpening) return;
     const node = treeRef.current[currentNodeId];
-    if (!node?.san) return;
-
-    if (autoExplainDebounceRef.current) clearTimeout(autoExplainDebounceRef.current);
-    autoExplainDebounceRef.current = setTimeout(() => {
-      if (isStreamingRef.current) return;
-      // Rate-limit: at most one auto-explain every 4 seconds
-      const now = Date.now();
-      if (now - lastAutoExplainRef.current < 4000) return;
-      lastAutoExplainRef.current = now;
-      const side = node.depth % 2 === 1 ? 'White' : 'Black';
-      const moveNum = Math.ceil(node.depth / 2);
-      const moveLine = getPathFromRoot(currentNodeId, treeRef.current)
-        .map(id => treeRef.current[id]?.san).filter(Boolean).join(' ');
-      const prompt = `${side} just played ${node.san} (move ${moveNum}). In 2–3 short paragraphs explain: why this specific move is played here, what strategic idea it follows or prepares, and what both sides should be thinking about next.`;
-      sendMessageRef.current(prompt, chatHistoryRef.current, selectedOpening, moveLine);
-    }, 700);
-  }, [currentNodeId, selectedOpening]); // eslint-disable-line
+    if (!node?.isMainLine) return;
+    if (explainedNodesRef.current.has(currentNodeId)) return;
+    const explanation = preloaded.explanations?.[currentNodeId];
+    if (!explanation) return;
+    explainedNodesRef.current.add(currentNodeId);
+    setChatHistory(prev => [...prev, { role: 'assistant', content: explanation }]);
+  }, [currentNodeId, preloaded, selectedOpening]); // eslint-disable-line
 
   /* ── goToNode ──────────────────────────────────────────── */
   const goToNode = useCallback((nodeId, nodesOverride) => {
+    listeningRef.current = false; // block stale engine lines before React re-renders
     const nodes = nodesOverride || treeRef.current;
     const path  = getPathFromRoot(nodeId, nodes);
     chess.reset();
@@ -315,6 +371,7 @@ export default function OpeningCoach({ username, playerProfile }) {
 
   /* ── Make move (board interaction) ────────────────────── */
   const makeMove = useCallback((from, to) => {
+    listeningRef.current = false; // block stale engine lines before React re-renders
     let move;
     try { move = chess.move({ from, to, promotion: 'q' }); }
     catch { return false; }
@@ -413,6 +470,7 @@ export default function OpeningCoach({ username, playerProfile }) {
           username, opening_name: op.name, opening_eco: op.eco,
           opening_moves: ms, chat_history: history,
           user_message: userText, player_profile: playerProfile || null,
+          current_fen: chess.fen(),
         }),
       });
       if (!res.ok) throw new Error();
@@ -443,7 +501,7 @@ export default function OpeningCoach({ username, playerProfile }) {
   }
 
   /* ── Select opening ────────────────────────────────────── */
-  const selectOpening = useCallback((opening) => {
+  const selectOpening = useCallback(async (opening) => {
     setSelectedOpening(opening);
     setQuery(opening.name);
     setShowDropdown(false);
@@ -459,16 +517,37 @@ export default function OpeningCoach({ username, playerProfile }) {
     setCurrentSessionId(null);
     setSelectedSq(null);
     setLegalTargets([]);
-    const intro = `Tell me about the ${opening.name}. Start with your introduction and assessment.`;
     setChatHistory([]);
     setStreamBuffer('');
-    setIsStreaming(false);
+    setPreloaded(null);
+    explainedNodesRef.current = new Set();
     justSelectedRef.current = true;
-    setTimeout(() => {
-      sendMessageRef.current(intro, [], opening, moves.join(' '));
-      // Re-enable auto-explain once the intro response lands (5s safety window)
-      setTimeout(() => { justSelectedRef.current = false; }, 5000);
-    }, 0);
+
+    // Show thinking indicator while loading
+    setIsStreaming(true);
+    try {
+      const res = await fetch(`${API}/coach/preload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opening_name: opening.name,
+          opening_eco:  opening.eco,
+          opening_moves: moves.join(' '),
+          player_profile: playerProfileRef.current,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setPreloaded(data);
+      if (data.intro) {
+        setChatHistory([{ role: 'assistant', content: data.intro }]);
+      }
+    } catch (err) {
+      setChatHistory([{ role: 'assistant', content: '⚠️ Could not load opening guide. You can still ask questions manually.' }]);
+    } finally {
+      setIsStreaming(false);
+      setTimeout(() => { justSelectedRef.current = false; }, 1000);
+    }
   }, [chess]); // eslint-disable-line
 
   /* ── Notes ─────────────────────────────────────────────── */
@@ -516,6 +595,7 @@ export default function OpeningCoach({ username, playerProfile }) {
   }
 
   async function loadSession(sid) {
+    listeningRef.current = false; // block stale engine lines while session loads
     try {
       const res = await fetch(`${API}/coach/session/${sid}?username=${encodeURIComponent(username)}`);
       const s   = await res.json();
@@ -554,6 +634,38 @@ export default function OpeningCoach({ username, playerProfile }) {
     } catch {}
   }
 
+  /* ── Theory move arrow (next main-line book move) ─────── */
+  const theoryArrow = (() => {
+    const curNode = treeNodes[currentNodeId];
+    if (!curNode) return null;
+    const nextMainId = curNode.childIds?.find(id => treeNodes[id]?.isMainLine);
+    if (!nextMainId) return null;
+    const nextNode = treeNodes[nextMainId];
+    if (!nextNode?.san) return null;
+    try {
+      const tmp = new Chess(curNode.fen);
+      const r = tmp.move(nextNode.san);
+      if (!r) return null;
+      return [r.from, r.to, 'rgba(52,211,153,1.0)'];
+    } catch { return null; }
+  })();
+
+  /* ── Stockfish arrows — legal moves only, theory square excluded ── */
+  const stockfishArrows = useMemo(() => {
+    if (!topMoves.some(Boolean)) return [];
+    try {
+      const chk = new Chess(fen);
+      const legal = new Set(chk.moves({ verbose: true }).map(m => m.from + m.to));
+      // If the theory arrow covers the same squares, skip that Stockfish entry
+      // so the green arrow is never overridden by a yellow duplicate
+      const theoryKey = theoryArrow ? theoryArrow[0] + theoryArrow[1] : null;
+      return topMoves
+        .slice(0, 5)
+        .filter(m => m && legal.has(m.from + m.to) && m.from + m.to !== theoryKey)
+        .map((m, i) => [m.from, m.to, arrowColors[i]]);
+    } catch { return []; }
+  }, [topMoves, fen, arrowColors, theoryArrow]);
+
   /* ── Derived ───────────────────────────────────────────── */
   const winStats = playerProfile
     ? Object.entries(playerProfile.time_controls || {})
@@ -575,7 +687,7 @@ export default function OpeningCoach({ username, playerProfile }) {
             <span className="oc-glyph">♟</span>
             <div>
               <div className="oc-title-main">AI Opening Coach</div>
-              <div className="oc-title-sub">Powered by Claude · 3,690 openings</div>
+              <div className="oc-title-sub">Powered by Groq · 3,690 openings</div>
             </div>
           </div>
           <div className="oc-session-btns">
@@ -633,32 +745,33 @@ export default function OpeningCoach({ username, playerProfile }) {
         </div>
       )}
 
+      {/* ── Recent sessions strip (below search, full width) ── */}
+      {!selectedOpening && sessions.length > 0 && (
+        <div className="oc-sessions-strip">
+          <span className="oc-strip-label">Recent sessions</span>
+          <div className="oc-strip-cards">
+            {sessions.map(s => (
+              <div key={s.id} className="oc-strip-card" onClick={() => loadSession(s.id)}>
+                <div className="oc-strip-card-top">
+                  <span className="oc-esc-eco">{s.opening_eco}</span>
+                  <button className="oc-esc-del" onClick={e => { e.stopPropagation(); deleteSession(s.id); }}>✕</button>
+                </div>
+                <div className="oc-strip-card-name">{s.opening_name}</div>
+                <div className="oc-strip-card-date">{new Date(s.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {!selectedOpening ? (
         <div className="oc-empty">
           <div className="oc-empty-glyph">♜</div>
           <div className="oc-empty-title">Search an opening to begin</div>
           <div className="oc-empty-sub">Type a name above — e.g. "sicilian", "ruy lopez", "king's indian"</div>
-
-          {sessions.length > 0 && (
-            <div className="oc-empty-sessions">
-              <div className="oc-empty-sessions-title">Continue a session</div>
-              <div className="oc-empty-sessions-grid">
-                {sessions.map(s => (
-                  <div key={s.id} className="oc-empty-session-card" onClick={() => loadSession(s.id)}>
-                    <div className="oc-esc-top">
-                      <span className="oc-esc-eco">{s.opening_eco}</span>
-                      <button className="oc-esc-del" onClick={e => { e.stopPropagation(); deleteSession(s.id); }}>✕</button>
-                    </div>
-                    <div className="oc-esc-name">{s.opening_name}</div>
-                    <div className="oc-esc-date">{new Date(s.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       ) : (
-        <div className="oc-body">
+        <div className="oc-body" style={{ gridTemplateColumns: chatOpen ? '580px 1fr' : '1fr 44px' }}>
           {/* LEFT */}
           <div className="oc-left">
             <div className="oc-opening-badge">
@@ -678,7 +791,9 @@ export default function OpeningCoach({ username, playerProfile }) {
                   customPieces={CHESS_PIECES}
                   customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
                   customLightSquareStyle={{ backgroundColor: boardColors.light }}
-                  boardWidth={400}
+                  customArrows={[...stockfishArrows, ...(theoryArrow ? [theoryArrow] : [])]}
+
+                  boardWidth={chatOpen ? 490 : 590}
                 />
               </div>
             </div>
@@ -725,45 +840,60 @@ export default function OpeningCoach({ username, playerProfile }) {
             )}
           </div>
 
-          {/* RIGHT: Chat */}
-          <div className="oc-right">
+          {/* RIGHT: Chat (collapsible) */}
+          <div className={`oc-right${chatOpen ? '' : ' oc-right-collapsed'}`}>
             <div className="oc-chat-head">
-              <span className="oc-chat-title">Coach</span>
-              <span className="oc-chat-sub">Ask anything about {selectedOpening.name}</span>
-            </div>
-            <div className="oc-chat-messages">
-              {chatHistory.map((msg, i) => <ChatMessage key={i} msg={msg} />)}
-              {streamBuffer && (
-                <div className="oc-msg oc-msg-assistant">
-                  <div className="oc-msg-avatar">♟</div>
-                  <div className="oc-msg-bubble oc-msg-streaming">
-                    {streamBuffer.split('\n').map((l, i) => <p key={i}>{l}</p>)}
-                    <span className="oc-cursor">▌</span>
-                  </div>
+              {chatOpen && (
+                <div className="oc-chat-head-text">
+                  <span className="oc-chat-title">Coach</span>
+                  <span className="oc-chat-sub">Ask anything about {selectedOpening.name}</span>
                 </div>
               )}
-              {isStreaming && !streamBuffer && (
-                <div className="oc-msg oc-msg-assistant">
-                  <div className="oc-msg-avatar">♟</div>
-                  <div className="oc-msg-bubble oc-thinking"><span /><span /><span /></div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-            <div className="oc-chat-input-row">
-              <textarea
-                className="oc-chat-input"
-                placeholder="Ask the coach e.g. Why is Nf3 played on move 3?"
-                value={inputMsg}
-                onChange={e => setInputMsg(e.target.value)}
-                onKeyDown={handleInputKey}
-                rows={2}
-                disabled={isStreaming}
-              />
-              <button className="oc-send-btn" onClick={handleSend} disabled={isStreaming || !inputMsg.trim()}>
-                {isStreaming ? '…' : '↑'}
+              <button
+                className="oc-chat-toggle"
+                onClick={() => setChatOpen(o => !o)}
+                title={chatOpen ? 'Collapse chat' : 'Expand chat'}
+              >
+                {chatOpen ? '›' : '‹'}
               </button>
             </div>
+            {chatOpen && (
+              <>
+                <div className="oc-chat-messages">
+                  {chatHistory.map((msg, i) => <ChatMessage key={i} msg={msg} />)}
+                  {streamBuffer && (
+                    <div className="oc-msg oc-msg-assistant">
+                      <div className="oc-msg-avatar">♟</div>
+                      <div className="oc-msg-bubble oc-msg-streaming">
+                        {streamBuffer.split('\n').map((l, i) => <p key={i}>{l}</p>)}
+                        <span className="oc-cursor">▌</span>
+                      </div>
+                    </div>
+                  )}
+                  {isStreaming && !streamBuffer && (
+                    <div className="oc-msg oc-msg-assistant">
+                      <div className="oc-msg-avatar">♟</div>
+                      <div className="oc-msg-bubble oc-thinking"><span /><span /><span /></div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="oc-chat-input-row">
+                  <textarea
+                    className="oc-chat-input"
+                    placeholder="Ask the coach e.g. Why is Nf3 played on move 3?"
+                    value={inputMsg}
+                    onChange={e => setInputMsg(e.target.value)}
+                    onKeyDown={handleInputKey}
+                    rows={2}
+                    disabled={isStreaming}
+                  />
+                  <button className="oc-send-btn" onClick={handleSend} disabled={isStreaming || !inputMsg.trim()}>
+                    {isStreaming ? '…' : '↑'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

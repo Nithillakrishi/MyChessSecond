@@ -568,6 +568,13 @@ class CoachChatRequest(BaseModel):
     chat_history: List[Dict]    # [{role, content}, ...]
     user_message: str
     player_profile: Optional[Dict] = None
+    current_fen: Optional[str] = None  # FEN of the position the user is looking at
+
+class PreloadRequest(BaseModel):
+    opening_name: str
+    opening_eco: str
+    opening_moves: str          # space-separated SAN moves (max ~10)
+    player_profile: Optional[Dict] = None
 
 class SaveSessionRequest(BaseModel):
     username: str
@@ -579,42 +586,263 @@ class SaveSessionRequest(BaseModel):
     notes: Dict
     session_id: Optional[int] = None
 
+def _fen_to_board_description(fen: str) -> str:
+    """Parse a FEN string into a human-readable piece placement description."""
+    try:
+        parts = fen.strip().split(' ')
+        board_fen = parts[0]
+        side      = parts[1] if len(parts) > 1 else 'w'
+        NAMES = {
+            'K':'King','Q':'Queen','R':'Rook','B':'Bishop','N':'Knight','P':'Pawn',
+            'k':'King','q':'Queen','r':'Rook','b':'Bishop','n':'Knight','p':'Pawn',
+        }
+        white, black = [], []
+        for rank_idx, row in enumerate(board_fen.split('/')):
+            rank = 8 - rank_idx
+            file_idx = 0
+            for ch in row:
+                if ch.isdigit():
+                    file_idx += int(ch)
+                else:
+                    sq = 'abcdefgh'[file_idx] + str(rank)
+                    entry = f"{NAMES.get(ch, ch)} on {sq}"
+                    (white if ch.isupper() else black).append(entry)
+                    file_idx += 1
+        to_move = 'White' if side == 'w' else 'Black'
+        return (
+            f"White pieces: {', '.join(white)}\n"
+            f"Black pieces: {', '.join(black)}\n"
+            f"Side to move: {to_move}"
+        )
+    except Exception:
+        return f"FEN: {fen}"
+
+
 def _build_system_prompt(opening_name: str, opening_eco: str, opening_moves: str,
-                          player_profile: Optional[Dict]) -> str:
-    profile_text = ""
+                          player_profile: Optional[Dict], current_fen: Optional[str] = None) -> str:
+    profile_text = "No player profile loaded — give general coaching advice."
+
     if player_profile:
-        total = player_profile.get("total_games", 0)
-        wins  = player_profile.get("wins", 0)
-        wr    = f"{round(wins/total*100)}%" if total else "N/A"
-        style = player_profile.get("dominant_style", "Unknown")
-        tc    = player_profile.get("time_controls", {})
+        total  = player_profile.get("total_games", 0)
+        wins   = player_profile.get("wins", 0)
+        losses = player_profile.get("losses", 0)
+        draws  = player_profile.get("draws", 0)
+        wr     = f"{round(wins/total*100)}%" if total else "N/A"
+
+        # Time controls
+        tc = player_profile.get("time_controls", {})
+        tc_lines = []
+        for name, s in tc.items():
+            if s.get("games", 0) > 0:
+                tc_lines.append(f"  {name.capitalize()}: {s['games']} games, {s.get('win_rate',0)}% win rate")
+
+        # Top openings as white
+        white_ops = player_profile.get("top_openings_white", [])
+        white_lines = [
+            f"  {o['name']}: {o['games']} games, {o['win_rate']}% win rate"
+            for o in white_ops[:5]
+        ]
+
+        # Top openings as black
+        black_ops = player_profile.get("top_openings_black", [])
+        black_lines = [
+            f"  {o['name']}: {o['games']} games, {o['win_rate']}% win rate"
+            for o in black_ops[:5]
+        ]
+
+        # First move preferences
+        fm_w = player_profile.get("first_moves_white", {})
+        fm_b = player_profile.get("first_moves_black", {})
+        fm_w_str = ", ".join(f"{m}({n})" for m, n in list(fm_w.items())[:4]) or "N/A"
+        fm_b_str = ", ".join(f"{m}({n})" for m, n in list(fm_b.items())[:4]) or "N/A"
+
+        # Position type strengths/weaknesses (if available)
         strengths, weaknesses = [], []
         for pt, s in player_profile.get("position_type_stats", {}).items():
             r = s.get("win_rate", 0)
             if r >= 60: strengths.append(f"{pt} ({r:.0f}%)")
             elif r < 40: weaknesses.append(f"{pt} ({r:.0f}%)")
-        profile_text = f"""
-Player Profile:
-- Username: {player_profile.get('username', 'Player')}
-- Overall win rate: {wr} across {total} games
-- Dominant style: {style}
-- Strong positions: {', '.join(strengths[:3]) or 'N/A'}
-- Weak positions: {', '.join(weaknesses[:3]) or 'N/A'}
+
+        avg_opp = player_profile.get("avg_opponent_elo")
+        opp_line = f"\n- Average opponent ELO: ~{round(avg_opp)}" if avg_opp else ""
+
+        profile_text = f"""Player: {player_profile.get('username', 'Player')}
+- Record: {total} games — {wins}W / {draws}D / {losses}L — overall win rate {wr}{opp_line}
+
+Time control breakdown:
+{chr(10).join(tc_lines) or '  N/A'}
+
+First moves as White (games): {fm_w_str}
+First moves as Black (responses to opponent's move): {fm_b_str}
+
+Top openings as WHITE:
+{chr(10).join(white_lines) or '  N/A'}
+
+Top openings as BLACK:
+{chr(10).join(black_lines) or '  N/A'}
+{f"Strong position types: {', '.join(strengths[:3])}" if strengths else ""}
+{f"Weak position types:   {', '.join(weaknesses[:3])}" if weaknesses else ""}"""
+
+    opening_ctx = ""
+    position_block = ""
+    if opening_name:
+        # Determine whose turn it is from FEN (authoritative)
+        side_to_move = "White"
+        if current_fen:
+            fen_parts = current_fen.split(' ')
+            if len(fen_parts) >= 2:
+                side_to_move = "White" if fen_parts[1] == 'w' else "Black"
+
+        # Format moves with move numbers: "e4 e5 Nf3 Nc6" → "1.e4 e5 2.Nf3 Nc6"
+        raw_moves = opening_moves.split() if opening_moves else []
+        numbered_moves = []
+        for i, san in enumerate(raw_moves):
+            if i % 2 == 0:
+                numbered_moves.append(f"{i//2 + 1}.{san}")
+            else:
+                numbered_moves.append(san)
+        moves_str = " ".join(numbered_moves) if numbered_moves else "(starting position)"
+
+        # Infer user color: FEN turn tells us who moves next; user color = opposite of side_to_move
+        # unless it's the very start. If side_to_move is White, Black just moved last → user is likely Black.
+        # But this heuristic is unreliable. Use move count parity + defense name as fallback.
+        move_count = len(raw_moves)
+        is_defense = any(w in opening_name.lower() for w in ('defense', 'defence', 'gambit declined'))
+        if move_count == 0:
+            user_color = "White"
+        elif move_count % 2 == 1:
+            user_color = "White"   # white just moved last (odd half-moves played)
+        else:
+            user_color = "Black" if is_defense else "White"
+
+        board_desc = _fen_to_board_description(current_fen) if current_fen else "Board position not available."
+
+        position_block = f"""=== CURRENT BOARD POSITION (authoritative — updated every message) ===
+Opening: {opening_name} (ECO: {opening_eco})
+Moves played: {moves_str}
+Side to move RIGHT NOW: {side_to_move}
+User is playing as: {user_color}
+
+Exact piece locations:
+{board_desc}
+
+CRITICAL: The piece locations above are the SINGLE SOURCE OF TRUTH for the current position.
+IGNORE any position details mentioned earlier in the chat history — those are stale.
+Do NOT guess, invent, or infer piece locations from the move sequence alone. Use the list above.
 """
 
-    return f"""You are an elite chess opening coach with grandmaster-level knowledge of all openings, their history, strategic ideas, and famous practitioners.
+        opening_ctx = f"""
+=== TURN AWARENESS — APPLY BEFORE EVERY RESPONSE ===
+• Side to move RIGHT NOW: {side_to_move}
+• User's color: {user_color}
+• If it is THE USER'S TURN ({user_color}) → suggest the best move(s) for {user_color}. Say "you should play X".
+• If it is THE OPPONENT'S TURN → DO NOT suggest a move as if the user should play it.
+  Say: "It's {'Black' if user_color == 'White' else 'White'}'s turn. The most common reply is [move] — here's why, and here's how you respond to it."
+  NEVER say "you should play X" when it is the opponent's turn. That is always wrong.
+"""
 
+    return f"""You are an elite chess coach with grandmaster-level knowledge — both of openings and of player analysis.
+
+{position_block}
+=== PLAYER PROFILE (REAL GAME DATA) ===
 {profile_text}
-Selected Opening: {opening_name} (ECO: {opening_eco})
-Move sequence: {opening_moves}
+{opening_ctx}
+Your coaching rules:
+- ALWAYS refer to the player as "you" / "your" — never use their username.
+- You have REAL statistics from this player's actual games. Use them specifically and confidently — never say the data is unknown or unavailable.
+- If asked about playing style, analyse the actual numbers: first moves, win rates by opening, time control preferences.
+- If asked for a short answer, give one word or one sentence — do not pad.
+- For move explanations: teach the specific motive, strategic idea, and what both sides plan next.
+- Keep responses to 3-6 short paragraphs. Be direct — no generic hedging.
 
-Your teaching style:
-- Be enthusiastic, clear, and precise. Use chess notation naturally (e.g. "after 3.Bb5").
-- On the FIRST message: give a vivid 3-4 sentence introduction to the opening — its character, the key strategic idea, and 2-3 world-class players famous for it. Then in 2-3 sentences honestly assess whether this opening suits the player's profile above (or note you have no profile data).
-- On subsequent messages: teach move-by-move motives, middlegame plans, pawn structures, and typical endgame tendencies. Be specific and instructive.
-- When asked "why is move X played?", answer that specific question concisely and accurately.
-- Keep each response to 3-6 short paragraphs max. No bullet-point walls — teach like a human coach.
+UI CONTEXT (what the player sees on their screen):
+- The board displays coloured arrows: yellow/gold arrows are Stockfish's top engine suggestions for whoever is to move; the green arrow shows the next theory move in the opening line. These are suggestions for the SIDE TO MOVE, which may be the opponent.
+- If the player mentions "arrows", "the green arrow", or similar — clarify whether the arrow is for their color or the opponent's before recommending it as a move to play.
+
+OPENING INTRODUCTION RULE (first message about an opening only):
+After your introduction, always end with a single line in EXACTLY this format:
+★ VERDICT: [one sentence — either confirm this opening is a great fit for the player's style with a specific reason, OR recommend one specific better-suited variation of the same opening and why it matches their style better]
+
+Example verdicts:
+★ VERDICT: The Najdorf is a perfect fit — your tactical style thrives in its sharp, double-edged lines.
+★ VERDICT: The Taimanov suits you, but the Najdorf Variation may suit your tactical instincts even better since it leads to sharper piece play.
 """
+
+@app.post("/coach/preload")
+async def coach_preload(request: PreloadRequest):
+    """One-shot load: intro + per-move theory explanations for an opening."""
+    import httpx, re as _re
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
+
+    moves = request.opening_moves.split() if request.opening_moves else []
+    # Cap at 12 moves to keep response within token budget
+    moves = moves[:12]
+
+    # Build numbered move list for the prompt
+    move_lines = []
+    for i, san in enumerate(moves):
+        side = "White" if i % 2 == 0 else "Black"
+        num  = i // 2 + 1
+        move_lines.append(f"Move {num} ({side}): {san}")
+
+    move_sections = "\n".join(f"[MOVE:{san}]\n(2-paragraph explanation for {san})" for san in moves)
+
+    prompt = f"""Give me a complete study guide for the {request.opening_name} ({request.opening_eco}).
+Move sequence: {' '.join(moves)}
+
+Format your response EXACTLY using these section markers (do not omit any):
+
+[INTRO]
+(2-3 paragraph introduction + player-specific assessment)
+★ VERDICT: (one sentence fit verdict)
+
+{move_sections}
+
+Keep each move explanation to 2 short paragraphs. Be specific to the position, not generic."""
+
+    system = _build_system_prompt(
+        request.opening_name, request.opening_eco,
+        request.opening_moves, request.player_profile
+    )
+    body = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user",   "content": prompt},
+        ],
+        "max_tokens": 2500,
+        "stream": False,
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                json=body,
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=90,
+            )
+            resp.raise_for_status()
+            raw = resp.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    # Parse sections
+    result = {"intro": "", "explanations": {}}
+
+    intro_m = _re.search(r'\[INTRO\](.*?)(?=\[MOVE:|$)', raw, _re.DOTALL)
+    if intro_m:
+        result["intro"] = intro_m.group(1).strip()
+
+    for i, san in enumerate(moves):
+        m = _re.search(rf'\[MOVE:{_re.escape(san)}\](.*?)(?=\[MOVE:|$)', raw, _re.DOTALL)
+        if m:
+            result["explanations"][f"m{i}"] = m.group(1).strip()
+
+    return result
+
 
 @app.post("/coach/chat")
 async def coach_chat(request: CoachChatRequest):
@@ -625,7 +853,8 @@ async def coach_chat(request: CoachChatRequest):
 
     system = _build_system_prompt(
         request.opening_name, request.opening_eco,
-        request.opening_moves, request.player_profile
+        request.opening_moves, request.player_profile,
+        current_fen=request.current_fen,
     )
 
     messages = [{"role": "system", "content": system}]
@@ -634,17 +863,17 @@ async def coach_chat(request: CoachChatRequest):
     messages.append({"role": "user", "content": request.user_message})
 
     body = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama-3.1-8b-instant",
         "messages": messages,
         "max_tokens": 1024,
-        "stream": True,
+        "stream": False,
     }
 
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",
-                json={**body, "stream": False},
+                json=body,
                 headers={"Authorization": f"Bearer {api_key}"},
                 timeout=60,
             )
@@ -653,7 +882,7 @@ async def coach_chat(request: CoachChatRequest):
     except Exception as e:
         err = str(e)
         if "429" in err or "Too Many Requests" in err:
-            text = "⚠️ The coach is being asked too many questions at once — please wait a few seconds and try again."
+            text = "⚠️ The coach is briefly rate-limited — please wait a few seconds and ask again."
         else:
             text = f"⚠️ Coach unavailable: {err[:200]}"
 

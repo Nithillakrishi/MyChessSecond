@@ -28,6 +28,7 @@ function App() {
   // Steps: landing | login | import | questionnaire | app
   const [step, setStep] = useState('landing');
   const [activeMode, setActiveMode] = useState('welcome');
+  const [mountedModes, setMountedModes] = useState(() => new Set(['welcome']));
 
   const [loggedInUser, setLoggedInUser] = useState(null);
   const [playerProfile, setPlayerProfile] = useState(null);
@@ -175,6 +176,7 @@ function App() {
   /* ── Mode selection ── */
   const handleModeSelect = (mode) => {
     setActiveMode(mode);
+    setMountedModes(prev => { const next = new Set(prev); next.add(mode); return next; });
   };
 
   /* ── Sign out — return to login screen (Jeeva's spec) ── */
@@ -271,34 +273,55 @@ function App() {
           username={username}
           onLogout={handleReset}
         >
-          {activeMode === 'welcome' && (
-            <WelcomePage
-              username={username}
-              profile={playerProfile}
-              onSelect={handleModeSelect}
-              onRefresh={handleRefreshData}
-            />
+          {mountedModes.has('welcome') && (
+            <div style={{ display: activeMode === 'welcome' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <WelcomePage
+                username={username}
+                profile={playerProfile}
+                onSelect={handleModeSelect}
+                onRefresh={handleRefreshData}
+              />
+            </div>
           )}
 
-          {activeMode === 'coach' && (
-            <OpeningCoach
-              username={username}
-              playerProfile={playerProfile}
-            />
+          {mountedModes.has('coach') && (
+            <div style={{ display: activeMode === 'coach' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <OpeningCoach
+                username={username}
+                playerProfile={playerProfile}
+                isActive={activeMode === 'coach'}
+              />
+            </div>
           )}
 
-          {activeMode === 'explorer' && <ChessExplorer />}
-
-          {activeMode === 'stockfish' && <EngineTraining />}
-
-          {activeMode === 'position' && <CustomPosition />}
-
-          {activeMode === 'opponent' && (
-            <TrainVsPlayer username={username} source={source} />
+          {mountedModes.has('explorer') && (
+            <div style={{ display: activeMode === 'explorer' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <ChessExplorer />
+            </div>
           )}
 
-          {activeMode === 'playvs' && (
-            <PlayVsStockfish />
+          {mountedModes.has('stockfish') && (
+            <div style={{ display: activeMode === 'stockfish' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <EngineTraining />
+            </div>
+          )}
+
+          {mountedModes.has('position') && (
+            <div style={{ display: activeMode === 'position' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <CustomPosition />
+            </div>
+          )}
+
+          {mountedModes.has('opponent') && (
+            <div style={{ display: activeMode === 'opponent' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <TrainVsPlayer username={username} source={source} />
+            </div>
+          )}
+
+          {mountedModes.has('playvs') && (
+            <div style={{ display: activeMode === 'playvs' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <PlayVsStockfish />
+            </div>
           )}
         </AppLayout>
       )}
