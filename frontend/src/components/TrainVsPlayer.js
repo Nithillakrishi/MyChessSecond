@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
-import { useBoardColors } from '../contexts/ThemeContext';
+import { useBoardColors, useArrowColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpening, detectOpeningByMoves } from '../utils/openingDetector';
 import './TrainVsPlayer.css';
@@ -39,38 +39,85 @@ function buildArrows(moves, fen, isMyMove) {
   return arrows;
 }
 
+
 function useEvalBar() {
-  const engineRef = React.useRef(null);
-  const [score, setScore] = React.useState(0);
+  const engineRef   = React.useRef(null);
+  const readyRef    = React.useRef(false);
+  const pendingRef  = React.useRef(null);
+  const lastFenRef  = React.useRef('');
+  const [score, setScore]       = React.useState(0);
+  const [topMoves, setTopMoves] = React.useState([]);
 
   useEffect(() => {
     const engine = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
     engineRef.current = engine;
     engine.onmessage = (e) => {
       const line = typeof e.data === 'string' ? e.data : String(e.data);
-      if (line.startsWith('info') && line.includes('score cp')) {
-        const m = line.match(/score cp (-?\d+)/);
-        if (m) setScore(parseInt(m[1]) / 100);
+      if (line === 'uciok') {
+        engine.postMessage('setoption name MultiPV value 5');
+        engine.postMessage('ucinewgame');
+        engine.postMessage('isready');
+        return;
       }
-      if (line.startsWith('info') && line.includes('score mate')) {
+      if (line === 'readyok') {
+        readyRef.current = true;
+        if (pendingRef.current) {
+          engine.postMessage(`position fen ${pendingRef.current}`);
+          engine.postMessage('go depth 16');
+          pendingRef.current = null;
+        }
+        return;
+      }
+      const isLine1 = !line.includes('multipv') || line.includes('multipv 1');
+      if (isLine1 && line.includes('score cp')) {
+        const m = line.match(/score cp (-?\d+)/);
+        if (m) {
+          const turn = lastFenRef.current.split(' ')[1];
+          const raw = parseInt(m[1]);
+          setScore(parseFloat(((turn === 'b' ? -raw : raw) / 100).toFixed(1)));
+        }
+      }
+      if (isLine1 && line.includes('score mate')) {
         const m = line.match(/score mate (-?\d+)/);
-        if (m) setScore(parseInt(m[1]) > 0 ? 99 : -99);
+        if (m) {
+          const turn = lastFenRef.current.split(' ')[1];
+          const raw = parseInt(m[1]);
+          const norm = turn === 'b' ? -raw : raw;
+          setScore(norm > 0 ? 99 : -99);
+        }
+      }
+      const pvMatch = line.match(/multipv (\d+).*?\bpv ([a-h][1-8])([a-h][1-8])/);
+      if (pvMatch) {
+        const rank = parseInt(pvMatch[1]) - 1;
+        const from = pvMatch[2];
+        const to   = pvMatch[3];
+        if (rank >= 0 && rank < 5) {
+          setTopMoves(prev => {
+            const next = [...prev];
+            next[rank] = { from, to };
+            return next;
+          });
+        }
       }
     };
     engine.postMessage('uci');
-    engine.postMessage('ucinewgame');
-    engine.postMessage('isready');
     return () => { engine.postMessage('quit'); engine.terminate(); };
   }, []);
 
   const analyse = useCallback((fen) => {
     if (!engineRef.current) return;
+    lastFenRef.current = fen;
+    setTopMoves([]);
     engineRef.current.postMessage('stop');
-    engineRef.current.postMessage(`position fen ${fen}`);
-    engineRef.current.postMessage('go depth 16');
+    if (readyRef.current) {
+      engineRef.current.postMessage(`position fen ${fen}`);
+      engineRef.current.postMessage('go depth 16');
+    } else {
+      pendingRef.current = fen;
+    }
   }, []);
 
-  return { score, analyse };
+  return { score, analyse, topMoves };
 }
 
 function EvalBar({ score, playerColor, isWhiteTurn }) {
@@ -122,7 +169,19 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
   const [fenHistory, setFenHistory] = useState([new Chess().fen()]); // all FENs for opening detection
   const [contextText, setContextText] = useState('');
 
-  const { score, analyse } = useEvalBar();
+  const { score, analyse, topMoves } = useEvalBar();
+  const arrowColors = useArrowColors();
+
+  const stockfishArrows = useMemo(() => {
+    if (!topMoves.some(Boolean)) return [];
+    try {
+      const legal = new Set(new Chess(fen).moves({ verbose: true }).map(m => m.from + m.to));
+      return topMoves
+        .filter(m => m && legal.has(m.from + m.to))
+        .slice(0, 4)
+        .map((m, i) => [m.from, m.to, arrowColors[i]]);
+    } catch { return []; }
+  }, [topMoves, fen, arrowColors]);
   const myColor = playerColor === 'white' ? 'w' : 'b';
 
   // Progress ticker while loading
@@ -178,7 +237,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
     setLastMove({ from: move.from, to: move.to });
     setArrows([]);
     fetchMoves(g.fen(), g);
-    analyse(g.fen());
+    analyse(g.fen());   // also calls setTopMoves([]) internally
     return true;
   }
 
@@ -362,7 +421,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
                 position={fen}
                 onPieceDrop={onDrop}
                 boardOrientation={playerColor}
-                customArrows={arrows}
+                customArrows={[...stockfishArrows, ...arrows]}
                 customArrowColor="rgba(0,0,0,0)"
                 boardWidth={boardSize}
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}

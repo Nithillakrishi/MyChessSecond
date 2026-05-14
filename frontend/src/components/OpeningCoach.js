@@ -269,10 +269,20 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
         const rank = parseInt(pvMatch[1]) - 1;
         const from = pvMatch[2];
         const to   = pvMatch[3];
+        let mvScore = null;
+        const cpM = line.match(/score cp (-?\d+)/);
+        const mtM = line.match(/score mate (-?\d+)/);
+        if (cpM) {
+          const turn = lastEvalFenRef.current.split(' ')[1];
+          const raw = parseInt(cpM[1]);
+          mvScore = parseFloat(((turn === 'b' ? -raw : raw) / 100).toFixed(2));
+        } else if (mtM) {
+          mvScore = parseInt(mtM[1]) > 0 ? 99 : -99;
+        }
         if (rank >= 0 && rank < 5) {
           setTopMoves(prev => {
             const next = [...prev];
-            next[rank] = { from, to };
+            next[rank] = { from, to, score: mvScore };
             return next;
           });
         }
@@ -666,12 +676,18 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
     } catch { return []; }
   }, [topMoves, fen, arrowColors, theoryArrow]);
 
+  /* ── Position stats from game history ─────────────────── */
+  const [positionStats, setPositionStats] = useState(null);
+  useEffect(() => {
+    if (!fen || !username) return;
+    setPositionStats(null);
+    fetch(`${API}/position-stats?fen=${encodeURIComponent(fen)}&username=${encodeURIComponent(username)}`)
+      .then(r => r.json())
+      .then(d => setPositionStats(d))
+      .catch(() => {});
+  }, [fen, username]);
+
   /* ── Derived ───────────────────────────────────────────── */
-  const winStats = playerProfile
-    ? Object.entries(playerProfile.time_controls || {})
-        .filter(([, v]) => v.games > 0)
-        .map(([k, v]) => ({ label: k, rate: v.win_rate || 0 }))
-    : [];
   const curNode      = treeNodes[currentNodeId];
   const hasPrev      = currentNodeId !== 'root';
   const hasNext      = (curNode?.childIds?.length || 0) > 0;
@@ -813,6 +829,23 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
               <button className="oc-flip-btn" onClick={() => setBoardFlipped(f => !f)} title="Flip board">⇅</button>
             </div>
 
+            {/* Position stats strip */}
+            {positionStats !== null && (
+              <div className="oc-pos-strip">
+                {positionStats.games === 0 ? (
+                  <span className="oc-pos-strip-empty">No games from this position yet</span>
+                ) : (
+                  <>
+                    <span className="oc-pos-strip-label">{positionStats.games} games</span>
+                    <span className="oc-pos-strip-sep" />
+                    <span className="oc-pos-strip-w">W {Math.round(positionStats.wins / positionStats.games * 100)}%</span>
+                    <span className="oc-pos-strip-d">D {Math.round(positionStats.draws / positionStats.games * 100)}%</span>
+                    <span className="oc-pos-strip-l">L {Math.round(positionStats.losses / positionStats.games * 100)}%</span>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Notes */}
             <div className="oc-notes-panel">
               <div className="oc-notes-label">
@@ -828,16 +861,6 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
               />
               <button className="oc-notes-save" onClick={saveNote} disabled={currentNodeId === 'root'}>Save note</button>
             </div>
-
-            {winStats.length > 0 && (
-              <div className="oc-stats-panel">
-                <div className="oc-stats-label">Your Win Rates</div>
-                {winStats.map(({ label, rate }) => (
-                  <WinBar key={label} label={label} rate={rate}
-                    color={rate >= 55 ? 'var(--green)' : rate < 40 ? 'var(--gold)' : 'rgba(255,255,255,0.4)'} />
-                ))}
-              </div>
-            )}
           </div>
 
           {/* RIGHT: Chat (collapsible) */}
@@ -859,6 +882,40 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
             </div>
             {chatOpen && (
               <>
+                {/* Engine chips above chat */}
+                {analysisFen && (() => {
+                  const CHIP_COLORS = ['#a78bfa', '#34d399', '#fbbf24', '#60a5fa'];
+                  const legalSet = (() => {
+                    try { return new Set(new Chess(fen).moves({ verbose: true }).map(m => m.from + m.to)); }
+                    catch { return new Set(); }
+                  })();
+                  const validMoves = topMoves.filter(m => m && legalSet.has(m.from + m.to)).slice(0, 4);
+                  return (
+                    <div className="oc-engine-chips">
+                      {validMoves.length === 0
+                        ? <span className="oc-engine-chips-loading">Analysing…</span>
+                        : validMoves.map((mv, i) => {
+                            let san = mv.from + mv.to;
+                            try {
+                              const tmp = new Chess(fen);
+                              const r = tmp.move({ from: mv.from, to: mv.to, promotion: 'q' });
+                              if (r) san = r.san;
+                            } catch {}
+                            const scoreStr = mv.score == null ? '' : mv.score >= 99 ? '#' : mv.score <= -99 ? '-#'
+                              : (mv.score >= 0 ? '+' : '') + mv.score.toFixed(2);
+                            return (
+                              <button key={i} className="oc-engine-chip"
+                                style={{ '--chip-col': CHIP_COLORS[i] }}
+                                onClick={() => makeMove(mv.from, mv.to)}>
+                                <span className="oc-engine-chip-san">{san}</span>
+                                {scoreStr && <span className="oc-engine-chip-score">{scoreStr}</span>}
+                              </button>
+                            );
+                          })}
+                    </div>
+                  );
+                })()}
+
                 <div className="oc-chat-messages">
                   {chatHistory.map((msg, i) => <ChatMessage key={i} msg={msg} />)}
                   {streamBuffer && (

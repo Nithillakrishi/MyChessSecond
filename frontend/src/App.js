@@ -302,7 +302,7 @@ function App() {
 
           {mountedModes.has('stockfish') && (
             <div style={{ display: activeMode === 'stockfish' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-              <EngineTraining />
+              <EngineTraining username={username} />
             </div>
           )}
 

@@ -435,6 +435,58 @@ async def explorer_proxy(fen: str):
     return {"moves": moves_list[:6], "source": "your_games"}
 
 
+@app.get("/position-stats")
+async def position_stats(fen: str, username: str = ""):
+    """How many times the user reached this exact position, and their W/D/L."""
+    global games_data, user_preferences
+    import chess as chess_lib
+
+    # Auto-restore games from DB cache if backend was restarted
+    if not games_data and username:
+        try:
+            from app.database import get_user_id, get_user_data
+            uid = get_user_id(username)
+            if uid:
+                cached = get_user_data(uid, "games")
+                if cached:
+                    games_data = cached
+                    if not user_preferences:
+                        user_preferences = get_user_data(uid, "preferences") or {}
+        except Exception:
+            pass
+
+    if not games_data:
+        return {"games": 0, "wins": 0, "draws": 0, "losses": 0}
+
+    uname = username.lower() or (user_preferences or {}).get("username", "").lower()
+    target_key = _fen_key(fen)
+    initial_key = _fen_key(chess_lib.Board().fen())
+    is_start = target_key == initial_key
+
+    wins = draws = losses = 0
+
+    for game in games_data:
+        g_positions = game.get("positions", [])
+        result = game.get("result", "*")
+        white_player = game.get("white", "").lower()
+
+        reached = is_start or any(_fen_key(p) == target_key for p in g_positions)
+        if not reached:
+            continue
+
+        user_is_white = white_player == uname
+        if result == "1-0":
+            if user_is_white: wins += 1
+            else: losses += 1
+        elif result == "0-1":
+            if user_is_white: losses += 1
+            else: wins += 1
+        else:
+            draws += 1
+
+    return {"games": wins + draws + losses, "wins": wins, "draws": draws, "losses": losses}
+
+
 @app.get("/chess-explorer")
 async def chess_explorer(fen: str):
     """
@@ -807,7 +859,7 @@ Keep each move explanation to 2 short paragraphs. Be specific to the position, n
         request.opening_moves, request.player_profile
     )
     body = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": system},
             {"role": "user",   "content": prompt},
@@ -857,13 +909,41 @@ async def coach_chat(request: CoachChatRequest):
         current_fen=request.current_fen,
     )
 
+    # Build position prefix — prepended BEFORE the user question so model reads it first
+    position_prefix = ""
+    if request.current_fen:
+        board_desc = _fen_to_board_description(request.current_fen)
+        fen_parts = request.current_fen.split(' ')
+        side_to_move = "White" if (len(fen_parts) < 2 or fen_parts[1] == 'w') else "Black"
+
+        # Derive user color same way as system prompt
+        raw_moves = request.opening_moves.split() if request.opening_moves else []
+        move_count = len(raw_moves)
+        is_defense = any(w in request.opening_name.lower() for w in ('defense', 'defence', 'gambit declined'))
+        if move_count == 0:
+            user_color = "White"
+        elif move_count % 2 == 1:
+            user_color = "White"
+        else:
+            user_color = "Black" if is_defense else "White"
+
+        opponent_color = "Black" if user_color == "White" else "White"
+        whose_turn = "YOUR" if side_to_move == user_color else f"YOUR OPPONENT'S ({side_to_move})"
+
+        position_prefix = (
+            f"[CURRENT POSITION — single source of truth, overrides everything in chat history]\n"
+            f"It is {whose_turn} turn to move.\n"
+            f"You (the user) are playing as {user_color}. Opponent is {opponent_color}.\n"
+            f"{board_desc}\n\n"
+        )
+
     messages = [{"role": "system", "content": system}]
     for msg in request.chat_history:
         messages.append({"role": msg["role"], "content": msg["content"]})
-    messages.append({"role": "user", "content": request.user_message})
+    messages.append({"role": "user", "content": position_prefix + request.user_message})
 
     body = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama-3.3-70b-versatile",
         "messages": messages,
         "max_tokens": 1024,
         "stream": False,

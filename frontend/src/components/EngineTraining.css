@@ -3,19 +3,19 @@
    ╚═══════════════════════════════════════════════════ */
 
 .et-root {
-  min-height: 100%;
-  padding: 28px 32px;
+  height: 100%;
+  padding: 24px 28px;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .et-layout {
   display: flex;
   gap: 24px;
-  align-items: flex-start;
+  align-items: stretch;
   width: 100%;
-  max-width: 980px;
 }
 
 /* ── Board column ── */
@@ -35,7 +35,7 @@
   border-radius: 6px;
   border: 1px solid var(--border);
   overflow: hidden;
-  height: min(500px, calc(100vw - 360px));
+  height: min(620px, calc(100vh - 200px));
   display: flex;
   flex-direction: column;
 }
@@ -43,7 +43,7 @@
 .et-eval-black { width: 100%; background: #1a1a1a; transition: height 0.4s ease; }
 .et-eval-white { width: 100%; background: var(--cream); transition: height 0.4s ease; }
 
-.et-board-wrap { width: min(500px, calc(100vw - 360px)); }
+.et-board-wrap { width: min(620px, calc(100vh - 200px)); }
 
 /* History */
 .et-history {
@@ -96,6 +96,7 @@
 }
 
 .et-ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.et-ctrl-flip { flex: 0 0 auto; padding: 9px 14px; font-size: 16px; }
 
 /* ── Engine panel ── */
 .et-panel {
@@ -109,6 +110,7 @@
   overflow: hidden;
   box-shadow: var(--shadow-card);
   position: relative;
+  align-self: stretch;
 }
 
 /* Gold gradient top border */
@@ -263,6 +265,102 @@
 }
 
 .et-tip-icon { flex-shrink: 0; font-size: 13px; }
+
+/* Position stats — stat cards */
+.et-pos-stats {
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.et-pos-stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.et-pos-stats-title {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.et-pos-stats-games {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0.55;
+}
+.et-pos-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.et-pos-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 14px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  position: relative;
+  overflow: hidden;
+}
+.et-pos-card-pct {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.et-pos-card-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+.et-pos-card-count {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.45;
+  margin-top: 2px;
+}
+.et-pos-card-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.et-pos-card-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+/* Win card */
+.et-pos-card-w { border-color: rgba(52,211,153,0.25); }
+.et-pos-card-w .et-pos-card-pct  { color: var(--green); }
+.et-pos-card-w .et-pos-card-bar-fill { background: var(--green); }
+/* Draw card */
+.et-pos-card-d { border-color: rgba(255,255,255,0.1); }
+.et-pos-card-d .et-pos-card-pct  { color: rgba(255,255,255,0.5); }
+.et-pos-card-d .et-pos-card-bar-fill { background: rgba(255,255,255,0.35); }
+/* Loss card */
+.et-pos-card-l { border-color: rgba(251,191,36,0.25); }
+.et-pos-card-l .et-pos-card-pct  { color: var(--gold); }
+.et-pos-card-l .et-pos-card-bar-fill { background: var(--gold); }
+
+.et-pos-stats-empty {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  font-weight: 400;
+  padding: 4px 0;
+}
 
 @media (max-width: 820px) {
   .et-root { padding: 18px; }

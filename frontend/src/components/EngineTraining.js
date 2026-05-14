@@ -145,18 +145,28 @@ function PVLine({ line, fen, lineNum, isWhiteTurn }) {
   );
 }
 
-export default function EngineTraining() {
+const API_BASE = 'http://localhost:8000';
+
+export default function EngineTraining({ username = '' }) {
   const { dark: boardDark, light: boardLight } = useBoardColors();
   const [game, setGame] = useState(new Chess());
   const [fen, setFen] = useState(new Chess().fen());
   const [lastMove, setLastMove] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedSquare, setSelectedSquare] = useState(null);
+  const [posStats, setPosStats] = useState(null);
+  const [flipped, setFlipped] = useState(false);
   const { lines, score, ready, analyse } = useMultiPV();
 
   useEffect(() => {
     analyse(new Chess().fen());
   }, []); // eslint-disable-line
+
+  useEffect(() => {
+    setPosStats(null);
+    fetch(`${API_BASE}/position-stats?fen=${encodeURIComponent(fen)}&username=${encodeURIComponent(username)}`)
+      .then(r => r.json()).then(setPosStats).catch(() => {});
+  }, [fen, username]);
 
   function applyHistory(sans) {
     const g = new Chess();
@@ -212,7 +222,6 @@ export default function EngineTraining() {
   }
 
   const isWhiteTurn = game.turn() === 'w';
-  // Stockfish score is always from side-to-move's perspective — adjust to white's perspective
   const adjustedScore = isWhiteTurn ? score : -score;
   const whitePct = Math.min(90, Math.max(10, 50 + adjustedScore * 4));
   const evalDisplay = ready
@@ -245,10 +254,19 @@ export default function EngineTraining() {
         {/* Board column */}
         <div className="et-board-col">
           <div className="et-board-inner">
-            {/* Eval bar */}
+            {/* Eval bar — swap order when flipped so bottom always matches board's bottom color */}
             <div className="et-eval-bar-outer">
-              <div className="et-eval-black" style={{ height: `${100 - whitePct}%` }} />
-              <div className="et-eval-white" style={{ height: `${whitePct}%` }} />
+              {flipped ? (
+                <>
+                  <div className="et-eval-white" style={{ height: `${whitePct}%` }} />
+                  <div className="et-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                </>
+              ) : (
+                <>
+                  <div className="et-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                  <div className="et-eval-white" style={{ height: `${whitePct}%` }} />
+                </>
+              )}
             </div>
 
             <div className="et-board-wrap">
@@ -256,7 +274,7 @@ export default function EngineTraining() {
                 position={fen}
                 onPieceDrop={onDrop}
                 onSquareClick={onSquareClick}
-                boardOrientation="white"
+                boardOrientation={flipped ? 'black' : 'white'}
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
                 customDarkSquareStyle={{ backgroundColor: boardDark }}
                 customLightSquareStyle={{ backgroundColor: boardLight }}
@@ -282,6 +300,7 @@ export default function EngineTraining() {
           <div className="et-controls">
             <button className="et-ctrl-btn" onClick={goBack} disabled={history.length === 0}>← Back</button>
             <button className="et-ctrl-btn" onClick={reset}>Reset</button>
+            <button className="et-ctrl-btn et-ctrl-flip" onClick={() => setFlipped(f => !f)} title="Flip board">⇅</button>
           </div>
         </div>
 
@@ -310,6 +329,43 @@ export default function EngineTraining() {
               />
             ))}
           </div>
+
+          {/* Position stats — stat cards */}
+          {posStats !== null && (
+            <div className="et-pos-stats">
+              <div className="et-pos-stats-header">
+                <span className="et-pos-stats-title">This Position in Your Games</span>
+                {posStats.games > 0 && <span className="et-pos-stats-games">{posStats.games.toLocaleString()} games</span>}
+              </div>
+              {posStats.games === 0 ? (
+                <span className="et-pos-stats-empty">You haven't reached this position yet</span>
+              ) : (() => {
+                const total = posStats.games;
+                const wPct = Math.round(posStats.wins  / total * 100);
+                const dPct = Math.round(posStats.draws / total * 100);
+                const lPct = 100 - wPct - dPct;
+                const cards = [
+                  { label: 'Wins',   pct: wPct, count: posStats.wins,   cls: 'w' },
+                  { label: 'Draws',  pct: dPct, count: posStats.draws,  cls: 'd' },
+                  { label: 'Losses', pct: lPct, count: posStats.losses, cls: 'l' },
+                ];
+                return (
+                  <div className="et-pos-cards">
+                    {cards.map(({ label, pct, count, cls }) => (
+                      <div key={cls} className={`et-pos-card et-pos-card-${cls}`}>
+                        <div className="et-pos-card-pct">{pct}%</div>
+                        <div className="et-pos-card-label">{label}</div>
+                        <div className="et-pos-card-count">{count.toLocaleString()} games</div>
+                        <div className="et-pos-card-bar">
+                          <div className="et-pos-card-bar-fill" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       </div>
     </div>

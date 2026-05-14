@@ -14,6 +14,8 @@ function useEval() {
   const engRef = useRef(null);
   const [sfScore, setSfScore] = React.useState(0);
   const [sfReady, setSfReady] = React.useState(false);
+  const [topLines, setTopLines] = React.useState([]);
+  const linesRef = useRef({});
 
   useEffect(() => {
     const eng = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
@@ -21,16 +23,35 @@ function useEval() {
     eng.onmessage = (e) => {
       const line = typeof e.data === 'string' ? e.data : String(e.data);
       if (line === 'readyok') setSfReady(true);
-      if (line.startsWith('info') && line.includes('score cp')) {
-        const m = line.match(/score cp (-?\d+)/);
-        if (m) setSfScore(parseInt(m[1]) / 100);
-      }
-      if (line.startsWith('info') && line.includes('score mate')) {
-        const m = line.match(/score mate (-?\d+)/);
-        if (m) setSfScore(parseInt(m[1]) > 0 ? 99 : -99);
+
+      if (line.startsWith('info') && line.includes('multipv')) {
+        const mpvM = line.match(/multipv (\d+)/);
+        const depthM = line.match(/depth (\d+)/);
+        const pvM = line.match(/ pv ([a-h][1-8][a-h][1-8]\S*(?:\s[a-h][1-8][a-h][1-8]\S*)*)/);
+        const depth = depthM ? parseInt(depthM[1]) : 0;
+        if (depth < 8 || !mpvM || !pvM) return;
+
+        let score = 0;
+        if (line.includes('score cp')) {
+          const m = line.match(/score cp (-?\d+)/);
+          if (m) score = parseInt(m[1]) / 100;
+        } else if (line.includes('score mate')) {
+          const m = line.match(/score mate (-?\d+)/);
+          if (m) score = parseInt(m[1]) > 0 ? 99 : -99;
+        }
+
+        const idx = parseInt(mpvM[1]);
+        linesRef.current[idx] = { uci: pvM[1].split(' ')[0], score };
+        if (idx === 1) setSfScore(score);
+
+        const arr = Object.entries(linesRef.current)
+          .sort(([a], [b]) => parseInt(a) - parseInt(b))
+          .map(([, v]) => v);
+        setTopLines([...arr]);
       }
     };
     eng.postMessage('uci');
+    eng.postMessage('setoption name MultiPV value 4');
     eng.postMessage('ucinewgame');
     eng.postMessage('isready');
     return () => { eng.postMessage('quit'); eng.terminate(); };
@@ -38,12 +59,14 @@ function useEval() {
 
   const analyse = useCallback((fen) => {
     if (!engRef.current) return;
+    linesRef.current = {};
+    setTopLines([]);
     engRef.current.postMessage('stop');
     engRef.current.postMessage(`position fen ${fen}`);
-    engRef.current.postMessage('go depth 16');
+    engRef.current.postMessage('go depth 18');
   }, []);
 
-  return { sfScore, sfReady, analyse };
+  return { sfScore, sfReady, analyse, topLines };
 }
 
 export default function ChessExplorer() {
@@ -55,7 +78,8 @@ export default function ChessExplorer() {
   const [loading, setLoading]       = useState(false);
   const [history, setHistory]       = useState([]);
   const [selectedSquare, setSelectedSquare] = useState(null);
-  const { sfScore, sfReady, analyse } = useEval();
+  const [flipped, setFlipped]       = useState(false);
+  const { sfScore, sfReady, analyse, topLines } = useEval();
 
   const fetchMoves = useCallback(async (currentFen) => {
     setLoading(true);
@@ -187,8 +211,17 @@ export default function ChessExplorer() {
           {/* Eval bar + board side by side */}
           <div className="ce-board-inner">
             <div className="ce-eval-bar-outer">
-              <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
-              <div className="ce-eval-white" style={{ height: `${whitePct}%`       }} />
+              {flipped ? (
+                <>
+                  <div className="ce-eval-white" style={{ height: `${whitePct}%` }} />
+                  <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                </>
+              ) : (
+                <>
+                  <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                  <div className="ce-eval-white" style={{ height: `${whitePct}%` }} />
+                </>
+              )}
             </div>
 
             <div className="ce-board-wrap">
@@ -196,7 +229,7 @@ export default function ChessExplorer() {
                 position={fen}
                 onPieceDrop={onDrop}
                 onSquareClick={onSquareClick}
-                boardOrientation="white"
+                boardOrientation={flipped ? 'black' : 'white'}
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
                 customDarkSquareStyle={{ backgroundColor: boardDark }}
                 customLightSquareStyle={{ backgroundColor: boardLight }}
@@ -222,17 +255,56 @@ export default function ChessExplorer() {
           <div className="ce-controls">
             <button className="ce-ctrl-btn" onClick={goBack} disabled={history.length === 0}>← Back</button>
             <button className="ce-ctrl-btn" onClick={reset}>Reset</button>
+            <button className="ce-ctrl-btn ce-ctrl-flip" onClick={() => setFlipped(f => !f)} title="Flip board">⇅</button>
           </div>
         </div>
 
         {/* Explorer panel */}
         <div className="ce-panel">
+          {/* Header */}
           <div className="ce-panel-header">
-            <span className="ce-panel-title">ChessDB Opening Explorer</span>
+            <span className="ce-panel-title">Opening Explorer</span>
             {loading && <span className="ce-loading">loading…</span>}
             <div className="ce-eval-badge">
               {sfReady ? (displayScore >= 0 ? '+' : '') + displayScore.toFixed(2) : '—'}
             </div>
+          </div>
+
+          {/* Engine lines — 4 chips in a 2x2 grid */}
+          <div className="ce-sf-grid">
+            <div className="ce-sf-grid-label">
+              <span>⚡ Engine</span>
+              <span className="ce-sf-grid-sub">{sfReady ? '' : 'loading…'}</span>
+            </div>
+            <div className="ce-sf-chips">
+              {topLines.length === 0
+                ? [1,2,3,4].map(i => <div key={i} className="ce-sf-chip ce-sf-chip-skeleton" />)
+                : topLines.slice(0, 4).map((ln, i) => {
+                    let san = ln.uci;
+                    try {
+                      const tmp = new Chess(fen);
+                      const r = tmp.move({ from: ln.uci.slice(0,2), to: ln.uci.slice(2,4), promotion: ln.uci[4] || 'q' });
+                      if (r) san = r.san;
+                    } catch {}
+                    const scoreStr = ln.score >= 99 ? '#' : ln.score <= -99 ? '-#'
+                      : (ln.score >= 0 ? '+' : '') + ln.score.toFixed(2);
+                    const CHIP_COLORS = ['#a78bfa', '#34d399', '#fbbf24', '#60a5fa'];
+                    const col = CHIP_COLORS[i];
+                    return (
+                      <button key={i} className="ce-sf-chip" onClick={() => navigate(ln.uci)}
+                        style={{ '--chip-color': col }}>
+                        <span className="ce-sf-chip-san">{san}</span>
+                        <span className="ce-sf-chip-score">{scoreStr}</span>
+                      </button>
+                    );
+                  })}
+            </div>
+          </div>
+
+          {/* Divider + DB section label */}
+          <div className="ce-db-label">
+            <span>🌐 ChessDB</span>
+            <span className="ce-db-sub">click any move to navigate</span>
           </div>
 
           {/* Column headers */}
@@ -247,11 +319,8 @@ export default function ChessExplorer() {
             {moves.length === 0 && !loading && (
               <div className="ce-no-moves">No data for this position in ChessDB.</div>
             )}
-            {moves.map((mv, i) => {
+            {moves.slice(0, 7).map((mv, i) => {
               const wr = mv.winrate != null ? Math.round(mv.winrate) : null;
-              const scoreLabel = mv.score_cp != null
-                ? (mv.score_cp >= 0 ? `+${(mv.score_cp/100).toFixed(2)}` : `${(mv.score_cp/100).toFixed(2)}`)
-                : null;
               return (
                 <button key={i} className="ce-move-row" onClick={() => navigate(mv.uci || mv.san)}>
                   <span className="ce-move-san">{mv.san}</span>
@@ -264,14 +333,9 @@ export default function ChessExplorer() {
                   <div className="ce-move-bar-wrap">
                     <div className="ce-move-bar" style={{ width: `${wr ?? 50}%` }} />
                   </div>
-                  {scoreLabel && <span className="ce-move-score">{scoreLabel}</span>}
                 </button>
               );
             })}
-          </div>
-
-          <div className="ce-source-note">
-            Source: ChessDB global database · click any move to navigate
           </div>
         </div>
       </div>
