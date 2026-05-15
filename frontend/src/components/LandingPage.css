@@ -200,12 +200,12 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
-  gap: 56px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
+  gap: 40px;
   align-items: end;
   max-width: 1440px;
   margin: 0 auto;
-  min-height: 540px;
+  min-height: 480px;
 }
 
 /* Left column */
@@ -351,7 +351,7 @@
 .lp-eval-bar {
   position: relative;
   width: 28px;
-  height: 480px;
+  height: 448px;
   background: var(--lp-bg-2);
   border: 1px solid var(--lp-line);
   align-self: flex-end;
@@ -1192,16 +1192,24 @@
 /* ════════════════════════════════════════
    RESPONSIVE
 ════════════════════════════════════════ */
+/* Medium screens — shrink board but keep side-by-side layout */
 @media (max-width: 1280px) {
-  .lp-hero-grid { grid-template-columns: 1fr; gap: 64px; align-items: start; }
-  .lp-hero-right { justify-content: flex-start; }
-  .lp-board { --sq: 56px; }
-  .lp-eval-bar { height: 448px; }
+  .lp-hero-grid { gap: 32px; }
+  .lp-board { --sq: 52px; }
+  .lp-eval-bar { height: 416px; }
   .lp-stats { grid-template-columns: repeat(3, 1fr); }
   .lp-stats .lp-stat:nth-child(n+4) { border-top: 1px solid var(--lp-line); }
   .lp-stats .lp-stat:nth-child(3) { border-right: none; }
   .lp-problem-head, .lp-section-head { grid-template-columns: 1fr; gap: 24px; }
   .lp-demo-grid { grid-template-columns: 1fr; }
+}
+
+/* Narrow screens — collapse to single column */
+@media (max-width: 960px) {
+  .lp-hero-grid { grid-template-columns: 1fr; gap: 48px; align-items: start; }
+  .lp-hero-right { justify-content: flex-start; }
+  .lp-board { --sq: 48px; }
+  .lp-eval-bar { height: 384px; }
 }
 
 @media (max-width: 820px) {

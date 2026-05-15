@@ -406,87 +406,299 @@
   border-color: var(--red);
 }
 
-/* ── Game over ── */
-.pvs-over {
-  max-width: 480px;
-  width: 100%;
-  text-align: center;
-  padding-top: 60px;
+/* ── Result banner (compact, above the board) ── */
+.pvs-result-banner {
+  margin-bottom: 12px;
+  padding: 12px 18px;
+  border-radius: 14px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 22px;
+  gap: 12px;
+  border: 1px solid;
+  animation: pvsUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
 }
 
-.pvs-result-badge {
-  font-size: 88px;
-  line-height: 1;
-  filter: drop-shadow(0 8px 36px rgba(0,0,0,0.5));
-  animation: pvsUp 0.45s cubic-bezier(0.34,1.56,0.64,1) both;
-}
+.pvs-result-banner-win  { background: rgba(127,166,80,0.12);  border-color: rgba(127,166,80,0.4); }
+.pvs-result-banner-loss { background: rgba(192,57,43,0.12);   border-color: rgba(192,57,43,0.4);  }
+.pvs-result-banner-draw { background: rgba(229,139,0,0.12);   border-color: rgba(229,139,0,0.4);  }
 
-.pvs-over-title {
-  font-size: 38px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+.pvs-result-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+
+.pvs-result-text {
+  font-size: 14px;
+  font-weight: 800;
   color: var(--cream);
   font-family: 'Syne', 'Inter', sans-serif;
-  animation: pvsUp 0.45s 0.06s cubic-bezier(0.34,1.56,0.64,1) both;
-  line-height: 1.1;
+  flex: 1;
 }
 
-.pvs-result-win .pvs-over-title {
-  background: linear-gradient(135deg, #FFD700 0%, #7FA650 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 40px rgba(255,215,0,0.35));
-}
-
-.pvs-result-loss .pvs-over-title {
-  background: linear-gradient(135deg, #e57373 0%, #c0392b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.pvs-over-sub {
-  font-size: 16px;
+.pvs-result-lvl {
+  font-size: 11px;
   color: var(--muted);
-  animation: pvsUp 0.4s 0.1s ease both;
-  line-height: 1.6;
-  max-width: 360px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.pvs-over-history {
+/* ── Eval bar ── */
+.pvs-eval-wrap {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 18px 20px;
-  width: 100%;
-  max-height: 200px;
-  overflow-y: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  font-size: 13px;
-  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
-  color: var(--cream);
-  text-align: left;
-  animation: pvsUp 0.4s 0.15s ease both;
+  padding: 14px 18px;
   box-shadow: var(--shadow-card);
 }
 
-.pvs-move-num { color: var(--muted); margin-right: 2px; }
-
-.pvs-over-btns {
+.pvs-eval-bar {
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
   display: flex;
-  gap: 12px;
-  width: 100%;
-  animation: pvsUp 0.4s 0.2s ease both;
+  margin-bottom: 10px;
+  background: var(--bg-3);
 }
 
-.pvs-over-btns .pvs-start-btn { flex: 1; }
+.pvs-eval-white-fill {
+  background: #f0d9b5;
+  height: 100%;
+  transition: width 0.4s ease;
+  border-radius: 4px 0 0 4px;
+}
+
+.pvs-eval-black-fill {
+  background: #1c1c1c;
+  height: 100%;
+  transition: width 0.4s ease;
+  border-radius: 0 4px 4px 0;
+}
+
+.pvs-eval-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pvs-eval-score {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+  transition: color 0.3s;
+}
+
+.pvs-eval-depth {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  background: var(--bg-3);
+  padding: 2px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+}
+
+/* ── Analysis card (top 4 PV lines) ── */
+.pvs-analysis-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pvs-analysis-title {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pvs-analysis-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.pvs-analysing {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.pvs-pv-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pvs-pv-row:last-child { border-bottom: none; }
+
+.pvs-pv-score {
+  font-size: 12px;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+  min-width: 42px;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.pvs-pv-moves {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+  color: var(--muted);
+  line-height: 1.55;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* ── Navigation bar (post-game, below board) ── */
+.pvs-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.pvs-nav-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--cream);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.pvs-nav-btn:hover:not(:disabled) {
+  background: var(--border-mid);
+  border-color: var(--border-mid);
+}
+
+.pvs-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+.pvs-nav-pos {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+}
+
+.pvs-explore-tag {
+  color: var(--gold);
+  font-weight: 800;
+  animation: pvsDots 1.4s ease infinite;
+}
+
+.pvs-nav-exit-explore {
+  background: rgba(229,139,0,0.1);
+  border: 1px solid rgba(229,139,0,0.3);
+  color: var(--gold);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.pvs-nav-exit-explore:hover { background: rgba(229,139,0,0.2); }
+
+/* ── Clickable move list (post-game) ── */
+.pvs-hist-clickable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 3px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.pvs-hist-clickable:hover {
+  background: var(--bg-3);
+  color: var(--caramel);
+}
+
+.pvs-hist-selected {
+  background: rgba(229,139,0,0.18) !important;
+  color: var(--gold) !important;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(229,139,0,0.3);
+}
+
+.pvs-hist-start {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 7px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  align-self: center;
+}
+
+.pvs-hist-start:hover,
+.pvs-hist-start.pvs-hist-selected {
+  background: rgba(229,139,0,0.18);
+  color: var(--gold);
+  border-color: rgba(229,139,0,0.3);
+}
+
+.pvs-hist-hint {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: auto;
+  opacity: 0.6;
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Compact history card post-game ── */
+.pvs-history-compact {
+  max-height: 150px !important;
+  min-height: unset !important;
+  flex: unset !important;
+}
+
+.pvs-history-compact .pvs-history-body {
+  align-items: center;
+}
+
+/* ── Post-game action buttons ── */
+.pvs-over-btns-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pvs-over-btns-side .pvs-start-btn { width: 100%; }
+.pvs-over-btns-side .pvs-ghost-btn { width: 100%; padding: 13px; }
 
 @media (max-width: 700px) {
   .pvs-root { padding: 18px; }

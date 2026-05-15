@@ -50,7 +50,7 @@ function HeroBoard() {
   // Highlighted squares: e4 (white played), c5 (black response).
   const highlight = new Set(['e4', 'c5']);
   // Best-move arrow we suggest visually: g1 → f3 (white's main continuation).
-  const sq = 60;
+  const sq = 56;
   return (
     <div className="lp-board" style={{ '--sq': `${sq}px` }}>
       {Array.from({ length: 64 }).map((_, i) => {
@@ -252,7 +252,7 @@ export default function LandingPage({ onStart }) {
     { icon: '♘', title: 'Opening Explorer',     desc: 'Global statistics powered by ChessDB — engine evals and win rates for every legal move.',                       tag: 'GLOBAL' },
     { icon: '♖', title: 'Engine Training',      desc: 'Stockfish 18 in the browser. Eval bar, best move, and search depth on every position.',                          tag: 'LIVE' },
     { icon: '♚', title: 'vs Player Database',   desc: 'Enter any username. See their opening tendencies — and practice against their favourite moves.',                  tag: 'SCOUT' },
-    { icon: '♕', title: 'Custom Position',      desc: 'Load any FEN and analyse or train from that exact setup with full engine support.',                              tag: 'STUDIO' },
+    { icon: '♕', title: 'Game Analysis',         desc: 'Import any PGN, navigate moves, branch into variations, and get Stockfish analysis at every position.',        tag: 'STUDIO' },
     { icon: '♔', title: 'Play vs Stockfish',    desc: 'Full game against the engine across five difficulty levels — beginner to master strength.',                       tag: 'COMBAT' },
   ];
 

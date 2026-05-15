@@ -198,6 +198,61 @@
   margin-bottom: 10px;
 }
 
+/* Clickable user button (opens account settings) */
+.al-user-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  padding: 6px 8px;
+  transition: background 0.14s, border-color 0.14s;
+  margin-bottom: 10px;
+}
+.al-user-btn:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--border);
+}
+
+.al-user-cog {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted);
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.14s;
+}
+.al-user-btn:hover .al-user-cog { opacity: 1; }
+
+/* Google photo in sidebar */
+.al-user-photo {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--border-mid);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.al-user-photo-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-mid);
+}
+
+/* Collapsed avatar button */
+.al-user-btn-sm {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+}
+
 .al-user-avatar {
   width: 34px;
   height: 34px;

@@ -4,16 +4,24 @@ import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import './index.css';
 
-// Suppress Stockfish WebAssembly RuntimeErrors — they don't affect
-// functionality but trigger the React dev error overlay when multiple
-// WASM workers run concurrently.
+// Suppress Stockfish WebAssembly RuntimeErrors in the capture phase so
+// React's dev error overlay never sees them.
 window.addEventListener('error', (e) => {
-  if (e.message && (e.message.includes('RuntimeError') || e.message.includes('null function'))) {
+  if (
+    e.error instanceof WebAssembly.RuntimeError ||
+    (e.message && (
+      e.message.includes('unreachable') ||
+      e.message.includes('null function') ||
+      e.message.includes('RuntimeError') ||
+      e.message.includes('wasm')
+    ))
+  ) {
     e.preventDefault();
-    e.stopPropagation();
+    e.stopImmediatePropagation();
+    console.warn('WASM error suppressed:', e.message);
     return true;
   }
-});
+}, true); // capture phase — fires before React's overlay listener
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

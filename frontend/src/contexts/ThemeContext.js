@@ -19,13 +19,13 @@ export const BOARD_COLORS = {
   teal:    { dark: '#157760', light: '#DCEFE6' },  // emerald · mint cream
 };
 
-// Stockfish arrow base colour per theme — chosen to contrast clearly against the board squares.
+// Arrow base colour per theme — matches each theme's accent.
 export const ARROW_BASE_COLOR = {
-  classic: '250,204,21',   // bright yellow — pops on purple board
-  crimson: '34,211,238',   // cyan — pops on red board
-  ocean:   '250,204,21',   // bright yellow — pops on blue board
-  violet:  '163,230,53',   // lime — pops on purple board
-  teal:    '250,204,21',   // bright yellow — pops on green board
+  classic: '139,92,246',   // violet  — Midnight Purple
+  crimson: '239,68,68',    // red     — Scarlet Nova
+  ocean:   '6,182,212',    // cyan    — Cyber Ocean
+  violet:  '168,85,247',   // purple  — Neon Violet
+  teal:    '16,185,129',   // emerald — Emerald Dark
 };
 
 // Opacity steps: best move → faintest (5th), still clearly visible at every level

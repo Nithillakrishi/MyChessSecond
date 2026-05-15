@@ -212,7 +212,7 @@
 
 .tvp-eval-bar-outer {
   width: 26px;
-  height: var(--board-size, 500px);
+  /* height set via inline style (boardSize prop) */
   background: var(--cream);
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -224,13 +224,13 @@
 .tvp-eval-bar-fill {
   width: 100%;
   background: #1a1a1a;
-  transition: height 0.4s ease;
+  transition: flex 0.4s ease;
 }
 
 .tvp-eval-bar-white {
   width: 100%;
   background: var(--cream);
-  transition: height 0.4s ease;
+  transition: flex 0.4s ease;
 }
 
 .tvp-eval-score {
@@ -400,6 +400,59 @@
   line-height: 1.6;
   border-top: 1px solid var(--border);
   background: var(--bg-3);
+}
+
+/* Engine panel */
+.tvp-engine-panel {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.tvp-engine-header {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tvp-engine-bolt { color: var(--caramel); font-size: 12px; }
+
+.tvp-engine-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tvp-engine-card {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tvp-engine-san {
+  font-size: 17px;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+}
+
+.tvp-engine-score {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Nav buttons */

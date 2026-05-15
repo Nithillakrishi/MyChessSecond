@@ -17,6 +17,7 @@ function useMultiPV() {
   useEffect(() => {
     const eng = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
     engRef.current = eng;
+    eng.onerror = (e) => { console.warn('Stockfish worker error:', e); };
 
     eng.onmessage = (e) => {
       const line = typeof e.data === 'string' ? e.data : String(e.data);
@@ -255,18 +256,21 @@ export default function EngineTraining({ username = '' }) {
         <div className="et-board-col">
           <div className="et-board-inner">
             {/* Eval bar — swap order when flipped so bottom always matches board's bottom color */}
-            <div className="et-eval-bar-outer">
-              {flipped ? (
-                <>
-                  <div className="et-eval-white" style={{ height: `${whitePct}%` }} />
-                  <div className="et-eval-black" style={{ height: `${100 - whitePct}%` }} />
-                </>
-              ) : (
-                <>
-                  <div className="et-eval-black" style={{ height: `${100 - whitePct}%` }} />
-                  <div className="et-eval-white" style={{ height: `${whitePct}%` }} />
-                </>
-              )}
+            <div className="et-eval-wrap">
+              <div className="et-eval-bar-outer">
+                {flipped ? (
+                  <>
+                    <div className="et-eval-white" style={{ height: `${whitePct}%` }} />
+                    <div className="et-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                  </>
+                ) : (
+                  <>
+                    <div className="et-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                    <div className="et-eval-white" style={{ height: `${whitePct}%` }} />
+                  </>
+                )}
+              </div>
+              <div className="et-eval-score-badge">{evalDisplay}</div>
             </div>
 
             <div className="et-board-wrap">

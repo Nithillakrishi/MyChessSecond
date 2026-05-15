@@ -70,7 +70,6 @@ function EvalBar({ evalScore, flipped }) {
   const botWins = flipped ? c < 0 : c > 0;
   return (
     <div className="oc-eval-bar">
-      <div className="oc-eval-lbl">{topWins ? lbl : ''}</div>
       <div className="oc-eval-track">
         {flipped ? (
           <>
@@ -84,7 +83,7 @@ function EvalBar({ evalScore, flipped }) {
           </>
         )}
       </div>
-      <div className="oc-eval-lbl">{botWins ? lbl : ''}</div>
+      <div className="oc-eval-score-badge">{lbl}</div>
     </div>
   );
 }
@@ -787,7 +786,7 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
           <div className="oc-empty-sub">Type a name above — e.g. "sicilian", "ruy lopez", "king's indian"</div>
         </div>
       ) : (
-        <div className="oc-body" style={{ gridTemplateColumns: chatOpen ? '580px 1fr' : '1fr 44px' }}>
+        <div className="oc-body" style={{ gridTemplateColumns: chatOpen ? '430px 1fr' : '1fr 44px' }}>
           {/* LEFT */}
           <div className="oc-left">
             <div className="oc-opening-badge">
@@ -809,7 +808,7 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
                   customLightSquareStyle={{ backgroundColor: boardColors.light }}
                   customArrows={[...stockfishArrows, ...(theoryArrow ? [theoryArrow] : [])]}
 
-                  boardWidth={chatOpen ? 490 : 590}
+                  boardWidth={chatOpen ? 360 : 460}
                 />
               </div>
             </div>

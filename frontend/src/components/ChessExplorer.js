@@ -11,18 +11,50 @@ import { CHESS_PIECES } from './boardPieces';
 const API_BASE = 'http://localhost:8000';
 
 function useEval() {
-  const engRef = useRef(null);
-  const [sfScore, setSfScore] = React.useState(0);
-  const [sfReady, setSfReady] = React.useState(false);
-  const [topLines, setTopLines] = React.useState([]);
+  const engRef      = useRef(null);
+  const readyRef    = useRef(false);
+  const isSearchRef = useRef(false);
+  const stoppingRef = useRef(false);
+  const nextFenRef  = useRef(null);
+  const [sfScore, setSfScore]     = React.useState(0);
+  const [sfReady, setSfReady]     = React.useState(false);
+  const [topLines, setTopLines]   = React.useState([]);
   const linesRef = useRef({});
 
   useEffect(() => {
     const eng = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
     engRef.current = eng;
+    eng.onerror = (e) => { console.warn('Stockfish worker error:', e); };
     eng.onmessage = (e) => {
       const line = typeof e.data === 'string' ? e.data : String(e.data);
-      if (line === 'readyok') setSfReady(true);
+
+      if (line === 'readyok') {
+        readyRef.current = true;
+        setSfReady(true);
+        if (nextFenRef.current) {
+          eng.postMessage(`position fen ${nextFenRef.current}`);
+          eng.postMessage('go depth 18');
+          isSearchRef.current = true;
+          nextFenRef.current = null;
+          stoppingRef.current = false;
+        }
+        return;
+      }
+
+      if (line.startsWith('bestmove')) {
+        isSearchRef.current = false;
+        stoppingRef.current = false;
+        if (nextFenRef.current) {
+          linesRef.current = {};
+          eng.postMessage(`position fen ${nextFenRef.current}`);
+          eng.postMessage('go depth 18');
+          isSearchRef.current = true;
+          nextFenRef.current = null;
+        }
+        return;
+      }
+
+      if (stoppingRef.current) return;
 
       if (line.startsWith('info') && line.includes('multipv')) {
         const mpvM = line.match(/multipv (\d+)/);
@@ -61,9 +93,16 @@ function useEval() {
     if (!engRef.current) return;
     linesRef.current = {};
     setTopLines([]);
-    engRef.current.postMessage('stop');
-    engRef.current.postMessage(`position fen ${fen}`);
-    engRef.current.postMessage('go depth 18');
+    if (!readyRef.current) { nextFenRef.current = fen; return; }
+    if (isSearchRef.current) {
+      nextFenRef.current = fen;
+      stoppingRef.current = true;
+      engRef.current.postMessage('stop');
+    } else {
+      engRef.current.postMessage(`position fen ${fen}`);
+      engRef.current.postMessage('go depth 18');
+      isSearchRef.current = true;
+    }
   }, []);
 
   return { sfScore, sfReady, analyse, topLines };
@@ -210,18 +249,23 @@ export default function ChessExplorer() {
         <div className="ce-board-col">
           {/* Eval bar + board side by side */}
           <div className="ce-board-inner">
-            <div className="ce-eval-bar-outer">
-              {flipped ? (
-                <>
-                  <div className="ce-eval-white" style={{ height: `${whitePct}%` }} />
-                  <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
-                </>
-              ) : (
-                <>
-                  <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
-                  <div className="ce-eval-white" style={{ height: `${whitePct}%` }} />
-                </>
-              )}
+            <div className="ce-eval-wrap">
+              <div className="ce-eval-bar-outer">
+                {flipped ? (
+                  <>
+                    <div className="ce-eval-white" style={{ height: `${whitePct}%` }} />
+                    <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                  </>
+                ) : (
+                  <>
+                    <div className="ce-eval-black" style={{ height: `${100 - whitePct}%` }} />
+                    <div className="ce-eval-white" style={{ height: `${whitePct}%` }} />
+                  </>
+                )}
+              </div>
+              <div className="ce-eval-score-badge">
+                {sfReady ? (displayScore >= 0 ? '+' : '') + displayScore.toFixed(2) : '—'}
+              </div>
             </div>
 
             <div className="ce-board-wrap">

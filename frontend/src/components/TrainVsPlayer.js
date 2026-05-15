@@ -42,17 +42,19 @@ function buildArrows(moves, fen, isMyMove, rgb) {
 
 
 function useEvalBar() {
-  const engineRef   = React.useRef(null);
-  const readyRef    = React.useRef(false);
-  const nextFenRef  = React.useRef(null);  // fen queued to analyse after engine stops
-  const stoppingRef = React.useRef(false); // true between 'stop' and 'bestmove'
-  const lastFenRef  = React.useRef('');
+  const engineRef    = React.useRef(null);
+  const readyRef     = React.useRef(false);
+  const isSearchRef  = React.useRef(false); // true while engine is actively searching
+  const nextFenRef   = React.useRef(null);  // fen queued to analyse after engine stops
+  const stoppingRef  = React.useRef(false); // true between 'stop' and 'bestmove'
+  const lastFenRef   = React.useRef('');
   const [score, setScore]       = React.useState(0);
   const [topMoves, setTopMoves] = React.useState([]);
 
   useEffect(() => {
     const engine = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
     engineRef.current = engine;
+    engine.onerror = (e) => { console.warn('Stockfish worker error:', e); };
     engine.onmessage = (e) => {
       const line = typeof e.data === 'string' ? e.data : String(e.data);
       if (line === 'uciok') {
@@ -66,16 +68,19 @@ function useEvalBar() {
         if (nextFenRef.current) {
           engine.postMessage(`position fen ${nextFenRef.current}`);
           engine.postMessage('go depth 16');
+          isSearchRef.current = true;
           nextFenRef.current = null;
           stoppingRef.current = false;
         }
         return;
       }
       if (line.startsWith('bestmove')) {
+        isSearchRef.current = false;
         stoppingRef.current = false;
         if (nextFenRef.current) {
           engine.postMessage(`position fen ${nextFenRef.current}`);
           engine.postMessage('go depth 16');
+          isSearchRef.current = true;
           nextFenRef.current = null;
         }
         return;
@@ -83,36 +88,45 @@ function useEvalBar() {
       // Drop all info messages while stopping — they belong to the previous position
       if (stoppingRef.current) return;
 
-      const isLine1 = !line.includes('multipv') || line.includes('multipv 1');
-      if (isLine1 && line.includes('score cp')) {
+      const pvMatch = line.match(/multipv (\d+)/);
+      const rank = pvMatch ? parseInt(pvMatch[1]) - 1 : -1;
+      const isLine1 = rank <= 0; // multipv 1 or no multipv tag
+
+      // Parse score for this PV line
+      let lineScore = null;
+      if (line.includes('score cp')) {
         const m = line.match(/score cp (-?\d+)/);
         if (m) {
           const turn = lastFenRef.current.split(' ')[1];
           const raw = parseInt(m[1]);
-          setScore(parseFloat(((turn === 'b' ? -raw : raw) / 100).toFixed(1)));
+          lineScore = parseFloat(((turn === 'b' ? -raw : raw) / 100).toFixed(1));
         }
-      }
-      if (isLine1 && line.includes('score mate')) {
+      } else if (line.includes('score mate')) {
         const m = line.match(/score mate (-?\d+)/);
         if (m) {
           const turn = lastFenRef.current.split(' ')[1];
           const raw = parseInt(m[1]);
-          const norm = turn === 'b' ? -raw : raw;
-          setScore(norm > 0 ? 99 : -99);
+          lineScore = (turn === 'b' ? -raw : raw) > 0 ? 99 : -99;
         }
       }
-      const pvMatch = line.match(/multipv (\d+).*?\bpv ([a-h][1-8])([a-h][1-8])/);
-      if (pvMatch) {
-        const rank = parseInt(pvMatch[1]) - 1;
-        const from = pvMatch[2];
-        const to   = pvMatch[3];
-        if (rank >= 0 && rank < 5) {
-          setTopMoves(prev => {
-            const next = [...prev];
-            next[rank] = { from, to };
-            return next;
-          });
-        }
+
+      if (isLine1 && lineScore !== null) setScore(lineScore);
+
+      // Parse first move of PV and convert to SAN
+      const moveMatch = line.match(/\bpv ([a-h][1-8])([a-h][1-8])([qrbn])?/);
+      if (moveMatch && rank >= 0 && rank < 4) {
+        const from = moveMatch[1], to = moveMatch[2], promo = moveMatch[3];
+        let san = from + to;
+        try {
+          const tmp = new Chess(lastFenRef.current);
+          const result = tmp.move({ from, to, promotion: promo || 'q' });
+          if (result) san = result.san;
+        } catch { /* keep UCI notation as fallback */ }
+        setTopMoves(prev => {
+          const next = [...prev];
+          next[rank] = { from, to, san, score: lineScore };
+          return next;
+        });
       }
     };
     engine.postMessage('uci');
@@ -123,27 +137,70 @@ function useEvalBar() {
     if (!engineRef.current) return;
     lastFenRef.current = fen;
     setTopMoves([]);
-    nextFenRef.current = fen;
-    stoppingRef.current = true;
-    engineRef.current.postMessage('stop');
-    // New analysis starts when 'bestmove' arrives (or 'readyok' if not ready)
+    if (!readyRef.current) {
+      nextFenRef.current = fen;
+      return;
+    }
+    if (isSearchRef.current) {
+      // Engine is searching — queue fen and stop; analysis resumes on 'bestmove'
+      nextFenRef.current = fen;
+      stoppingRef.current = true;
+      engineRef.current.postMessage('stop');
+    } else {
+      // Engine is idle — start immediately
+      engineRef.current.postMessage(`position fen ${fen}`);
+      engineRef.current.postMessage('go depth 16');
+      isSearchRef.current = true;
+    }
   }, []);
 
   return { score, analyse, topMoves };
 }
 
-function EvalBar({ score, playerColor, isWhiteTurn }) {
-  const whiteScore = isWhiteTurn ? score : -score;
-  const whitePct = Math.min(90, Math.max(10, 50 + whiteScore * 4));
-  const displayPct = playerColor === 'white' ? whitePct : 100 - whitePct;
-  const evalStr = whiteScore >= 0 ? `+${whiteScore.toFixed(1)}` : whiteScore.toFixed(1);
+function EvalBar({ score, playerColor, boardSize }) {
+  // score is already from white's perspective (positive = white better) — no flip needed
+  const whitePct = Math.min(90, Math.max(10, 50 + score * 4));
+  const blackPct = 100 - whitePct;
+  // flip perspective so the player's color is at the bottom
+  const bottomPct = playerColor === 'white' ? whitePct : blackPct;
+  const topPct    = 100 - bottomPct;
+  const evalStr = score >= 0 ? `+${score.toFixed(1)}` : score.toFixed(1);
   return (
     <div className="tvp-eval-wrap">
-      <div className="tvp-eval-bar-outer">
-        <div className="tvp-eval-bar-fill" style={{ height: `${100 - displayPct}%` }} />
-        <div className="tvp-eval-bar-white" style={{ height: `${displayPct}%` }} />
+      <div className="tvp-eval-bar-outer" style={{ height: boardSize }}>
+        <div className="tvp-eval-bar-fill" style={{ flex: topPct }} />
+        <div className="tvp-eval-bar-white" style={{ flex: bottomPct }} />
       </div>
       <div className="tvp-eval-score">{evalStr}</div>
+    </div>
+  );
+}
+
+const ENGINE_MOVE_COLORS = ['#a78bfa', '#34d399', '#fbbf24', '#38bdf8'];
+
+function EnginePanel({ topMoves }) {
+  const visible = topMoves.filter(Boolean).slice(0, 4);
+  if (visible.length === 0) return null;
+  return (
+    <div className="tvp-engine-panel">
+      <div className="tvp-engine-header">
+        <span className="tvp-engine-bolt">⚡</span> ENGINE
+      </div>
+      <div className="tvp-engine-grid">
+        {visible.map((mv, i) => {
+          const s = mv.score;
+          const scoreStr = s === null ? '—'
+            : s >= 99 ? 'M+'
+            : s <= -99 ? 'M−'
+            : (s >= 0 ? `+${s.toFixed(2)}` : s.toFixed(2));
+          return (
+            <div key={i} className="tvp-engine-card">
+              <span className="tvp-engine-san" style={{ color: ENGINE_MOVE_COLORS[i] }}>{mv.san}</span>
+              <span className="tvp-engine-score">{scoreStr}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -188,18 +245,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
   const [selectedSquare, setSelectedSquare] = useState(null);
 
   const { score, analyse, topMoves } = useEvalBar();
-  const arrowColors = useArrowColors();
 
-  const stockfishArrows = useMemo(() => {
-    if (!topMoves.some(Boolean)) return [];
-    try {
-      const legal = new Set(new Chess(fen).moves({ verbose: true }).map(m => m.from + m.to));
-      return topMoves
-        .filter(m => m && legal.has(m.from + m.to))
-        .slice(0, 4)
-        .map((m, i) => [m.from, m.to, arrowColors[i]]);
-    } catch { return []; }
-  }, [topMoves, fen, arrowColors]);
   const myColor = playerColor === 'white' ? 'w' : 'b';
   const isMyTurn = game.turn() === myColor;
   const arrows = useMemo(
@@ -467,14 +513,14 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
         {/* Board + eval + history (stacked as column) */}
         <div className="tvp-board-col">
           <div className="tvp-board-row">
-            <EvalBar score={score} playerColor={playerColor} isWhiteTurn={game.turn() === 'w'} />
+            <EvalBar score={score} playerColor={playerColor} boardSize={boardSize} />
             <div className="tvp-board-wrap" style={{ width: boardSize }}>
               <Chessboard customPieces={CHESS_PIECES}
                 position={fen}
                 onPieceDrop={onDrop}
                 onSquareClick={onSquareClick}
                 boardOrientation={playerColor}
-                customArrows={[...stockfishArrows, ...arrows]}
+                customArrows={arrows}
                 customArrowColor="rgba(0,0,0,0)"
                 boardWidth={boardSize}
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
@@ -513,6 +559,9 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
               <div className="tvp-opp-meta">{totalGames.toLocaleString()} games · {oppSource}</div>
             </div>
           </div>
+
+          {/* Engine suggestions — above moves so always visible */}
+          <EnginePanel topMoves={topMoves} />
 
           {/* Moves table */}
           <div className="tvp-moves-panel">

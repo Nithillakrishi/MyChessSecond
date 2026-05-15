@@ -90,7 +90,7 @@ const MODE_CARDS = [
   { id: 'explorer',  icon: '🌐', color: '#E58B00', gradient: 'linear-gradient(135deg,rgba(229,139,0,0.18) 0%,rgba(184,110,0,0.08) 100%)',   border: 'rgba(229,139,0,0.4)',   title: 'Chess Explorer',     desc: 'Global stats from ChessDB.' },
   { id: 'stockfish', icon: '⚡', color: '#5B9BD5', gradient: 'linear-gradient(135deg,rgba(91,155,213,0.18) 0%,rgba(60,110,170,0.08) 100%)',  border: 'rgba(91,155,213,0.4)',  title: 'Engine Training',    desc: 'Stockfish 3-line analysis.' },
   { id: 'opponent',  icon: '👥', color: '#C4874A', gradient: 'linear-gradient(135deg,rgba(196,135,74,0.18) 0%,rgba(160,100,50,0.08) 100%)',  border: 'rgba(196,135,74,0.4)',  title: 'vs Player Database', desc: 'Arrow-based opponent training.' },
-  { id: 'position',  icon: '🎯', color: '#9B59B6', gradient: 'linear-gradient(135deg,rgba(155,89,182,0.18) 0%,rgba(120,60,150,0.08) 100%)', border: 'rgba(155,89,182,0.4)',  title: 'Custom Position',    desc: 'Load any FEN for analysis.' },
+  { id: 'position',  icon: '🎯', color: '#9B59B6', gradient: 'linear-gradient(135deg,rgba(155,89,182,0.18) 0%,rgba(120,60,150,0.08) 100%)', border: 'rgba(155,89,182,0.4)',  title: 'Game Analysis',      desc: 'Import PGN or load FEN. Variations + Stockfish.' },
   { id: 'playvs',    icon: '♜', color: '#C0392B', gradient: 'linear-gradient(135deg,rgba(192,57,43,0.18) 0%,rgba(150,40,30,0.08) 100%)',   border: 'rgba(192,57,43,0.4)',   title: 'Play vs Stockfish',  desc: '5 difficulty levels.' },
 ];
 

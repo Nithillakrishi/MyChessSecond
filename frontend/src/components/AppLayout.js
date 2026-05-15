@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Logo } from './LandingPage';
 import ThemePicker from './ThemePicker';
+import AccountSettings from './AccountSettings';
+import { useAuth } from '../contexts/AuthContext';
 import './AppLayout.css';
 
 const NAV_ITEMS = [
@@ -9,14 +11,16 @@ const NAV_ITEMS = [
   { id: 'explorer',  icon: '🌐', label: 'Chess Explorer' },
   { id: 'stockfish', icon: '⚡', label: 'Engine Training' },
   { id: 'opponent',  icon: '👥', label: 'vs Player' },
-  { id: 'position',  icon: '🎯', label: 'Custom Position' },
+  { id: 'position',  icon: '🎯', label: 'Game Analysis' },
   { id: 'playvs',    icon: '♜',  label: 'Play vs Stockfish' },
 ];
 
-export default function AppLayout({ activeMode, onSelect, username, onLogout, children }) {
+export default function AppLayout({ activeMode, onSelect, username, onLogout, onChessUsernameChanged, children }) {
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('sidebar-collapsed') === 'true'
   );
+  const [showSettings, setShowSettings] = useState(false);
 
   function toggleCollapse() {
     const next = !collapsed;
@@ -24,12 +28,14 @@ export default function AppLayout({ activeMode, onSelect, username, onLogout, ch
     localStorage.setItem('sidebar-collapsed', String(next));
   }
 
+  const avatarUrl = user?.user_metadata?.avatar_url;
+  const displayName = user?.user_metadata?.full_name || username;
+
   return (
     <div className={`al-root ${collapsed ? 'al-collapsed' : ''}`}>
       {/* Sidebar */}
       <aside className="al-sidebar">
         <div className="al-sidebar-top">
-          {/* Brand row + collapse toggle */}
           <div className="al-brand-row">
             {!collapsed && (
               <div className="al-brand" onClick={() => onSelect('welcome')}>
@@ -65,27 +71,38 @@ export default function AppLayout({ activeMode, onSelect, username, onLogout, ch
         <div className="al-sidebar-bottom">
           {!collapsed && (
             <>
-              <div className="al-user">
-                <div className="al-user-avatar">
-                  {username ? username[0].toUpperCase() : '?'}
-                </div>
+              <button className="al-user al-user-btn" onClick={() => setShowSettings(true)} title="Account settings">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="al-user-photo" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="al-user-avatar">
+                    {username ? username[0].toUpperCase() : '?'}
+                  </div>
+                )}
                 <div className="al-user-info">
                   <span className="al-user-name">{username}</span>
-                  <span className="al-user-lbl">Player</span>
+                  <span className="al-user-lbl">{displayName !== username ? displayName : 'Player'}</span>
                 </div>
-              </div>
+                <span className="al-user-cog">⚙</span>
+              </button>
               <div className="al-bottom-actions">
                 <ThemePicker compact />
-                <button className="al-logout" onClick={onLogout} title="Back to start">↩</button>
+                <button className="al-logout" onClick={onLogout} title="Sign out">↩</button>
               </div>
             </>
           )}
           {collapsed && (
             <div className="al-collapsed-bottom">
-              <div className="al-user-avatar al-avatar-sm">
-                {username ? username[0].toUpperCase() : '?'}
-              </div>
-              <button className="al-logout" onClick={onLogout} title="Back to start">↩</button>
+              <button className="al-user-btn-sm" onClick={() => setShowSettings(true)} title="Account settings">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="al-user-photo-sm" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="al-user-avatar al-avatar-sm">
+                    {username ? username[0].toUpperCase() : '?'}
+                  </div>
+                )}
+              </button>
+              <button className="al-logout" onClick={onLogout} title="Sign out">↩</button>
             </div>
           )}
         </div>
@@ -95,6 +112,17 @@ export default function AppLayout({ activeMode, onSelect, username, onLogout, ch
       <main className="al-main">
         {children}
       </main>
+
+      {/* Account settings modal */}
+      {showSettings && (
+        <AccountSettings
+          onClose={() => setShowSettings(false)}
+          onChessUsernameChanged={(u, s) => {
+            setShowSettings(false);
+            onChessUsernameChanged?.(u, s);
+          }}
+        />
+      )}
     </div>
   );
 }

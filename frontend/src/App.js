@@ -11,6 +11,7 @@ import CustomPosition from './components/CustomPosition';
 import ChessExplorer from './components/ChessExplorer';
 import EngineTraining from './components/EngineTraining';
 import TrainVsPlayer from './components/TrainVsPlayer';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import axios from 'axios';
 import './App.css';
 
@@ -24,13 +25,14 @@ function extractError(err, fallback) {
   return JSON.stringify(detail);
 }
 
-function App() {
+function AppInner() {
+  const { user, profile, signOut } = useAuth();
+
   // Steps: landing | login | import | questionnaire | app
   const [step, setStep] = useState('landing');
   const [activeMode, setActiveMode] = useState('welcome');
   const [mountedModes, setMountedModes] = useState(() => new Set(['welcome']));
 
-  const [loggedInUser, setLoggedInUser] = useState(null);
   const [playerProfile, setPlayerProfile] = useState(null);
   const [username, setUsername] = useState('');
   const [source, setSource] = useState('chess.com');
@@ -42,30 +44,59 @@ function App() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
 
-  // Restore session — skip straight to app if already logged in; load cached profile
+  // ── Auth session restore ──
+  // Fires when Supabase resolves the session (including on page refresh from another device)
   useEffect(() => {
-    const savedUsername = localStorage.getItem('username');
-    if (!savedUsername) return;
-    setLoggedInUser(savedUsername);
-    setUsername(savedUsername);
-    setStep('app');
+    if (user === undefined) return; // still loading auth state
 
-    // Fast path: restore from localStorage cache immediately
-    const cachedProfile = localStorage.getItem('playerProfile');
-    if (cachedProfile) {
-      try { setPlayerProfile(JSON.parse(cachedProfile)); } catch {}
+    if (!user || !profile) {
+      // Signed out — reset to start
+      if (step === 'app' || step === 'import' || step === 'questionnaire') {
+        setStep('login');
+        setUsername('');
+        setPlayerProfile(null);
+      }
+      return;
     }
 
-    // Also refresh from SQLite in background (restores games_data on backend too)
+    if (!profile.chess_username) {
+      // Signed in with Google but hasn't set chess username yet → LoginPage handles step 2
+      setStep('login');
+      return;
+    }
+
+    // Signed in with chess username set — restore session
+    const savedUsername  = profile.chess_username;
+    const savedSource    = profile.chess_source || 'chess.com';
+    setUsername(savedUsername);
+    setSource(savedSource);
+
+    // Avoid overriding a step the user is already in (e.g., questionnaire)
+    if (step === 'app' || step === 'import' || step === 'questionnaire') return;
+
+    // Fast restore from localStorage cache
+    const cachedProfile = localStorage.getItem('playerProfile');
+    if (cachedProfile) {
+      try {
+        setPlayerProfile(JSON.parse(cachedProfile));
+        setStep('app');
+      } catch {}
+    }
+
+    // Refresh from backend in background
     axios.get(`${API_BASE}/cached-profile`, { params: { username: savedUsername } })
       .then(res => {
         setPlayerProfile(res.data);
         localStorage.setItem('playerProfile', JSON.stringify(res.data));
+        setStep('app');
       })
-      .catch(() => {}); // silently ignore if no cache exists yet
-  }, []);
+      .catch(() => {
+        // No backend cache → go to import so user can fetch their games
+        if (step !== 'app') setStep('import');
+      });
+  }, [user, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  React.useEffect(() => {
+  useEffect(() => {
     let interval;
     if (loading) {
       interval = setInterval(() => {
@@ -77,11 +108,10 @@ function App() {
     return () => clearInterval(interval);
   }, [loading]);
 
-  /* ── Login handler (Jeeva's LoginPage callback) ── */
-  const handleLoginSuccess = (user) => {
-    setLoggedInUser(user);
-    setUsername(user);
-    localStorage.setItem('username', user);
+  /* ── Login success — called by LoginPage after chess username is set ── */
+  const handleLoginSuccess = (chessUsername, chessSource) => {
+    setUsername(chessUsername);
+    setSource(chessSource || 'chess.com');
     setStep('import');
   };
 
@@ -92,10 +122,7 @@ function App() {
     setLoadingMessage(`Refreshing games for ${username}…`);
     setError(null);
     try {
-      const res = await axios.post(`${API_BASE}/analyze-profile`, {
-        source,
-        username,
-      });
+      const res = await axios.post(`${API_BASE}/analyze-profile`, { source, username });
       setPlayerProfile(res.data);
       localStorage.setItem('playerProfile', JSON.stringify(res.data));
     } catch (err) {
@@ -113,7 +140,6 @@ function App() {
     try {
       setUsername(importedUsername);
       setSource(importedSource);
-
       const res = await axios.post(`${API_BASE}/analyze-profile`, {
         source: importedSource,
         username: importedUsername,
@@ -151,17 +177,13 @@ function App() {
     setError(null);
     try {
       const preferences = {};
-      if (questionnaireData && questionnaireData.position_types_with_stats) {
+      if (questionnaireData?.position_types_with_stats) {
         questionnaireData.position_types_with_stats.forEach(item => {
           preferences[item.position_type] =
             questionnaire_response.selected_positions.includes(item.position_type) ? 5 : 1;
         });
       }
-      const payload = {
-        username: questionnaire_response.username,
-        preferences,
-        color: questionnaire_response.color,
-      };
+      const payload = { username: questionnaire_response.username, preferences, color: questionnaire_response.color };
       await axios.post(`${API_BASE}/submit-preferences`, payload);
       setRepertoireData({ preferences, color: payload.color });
       setActiveMode('coach');
@@ -179,19 +201,25 @@ function App() {
     setMountedModes(prev => { const next = new Set(prev); next.add(mode); return next; });
   };
 
-  /* ── Sign out — return to login screen (Jeeva's spec) ── */
-  const handleReset = () => {
-    localStorage.removeItem('username');
-    localStorage.removeItem('token');
+  /* ── Sign out ── */
+  const handleReset = async () => {
     localStorage.removeItem('playerProfile');
-    setLoggedInUser(null);
-    setStep('login');
-    setActiveMode('welcome');
     setPlayerProfile(null);
     setUsername('');
     setQuestionnaireData(null);
     setRepertoireData(null);
     setError(null);
+    setActiveMode('welcome');
+    await signOut(); // Supabase clears session → auth effect above sets step to 'login'
+  };
+
+  /* ── Called from AccountSettings when chess username changes ── */
+  const handleChessUsernameChanged = (newUsername, newSource) => {
+    setUsername(newUsername);
+    setSource(newSource);
+    setPlayerProfile(null);
+    localStorage.removeItem('playerProfile');
+    setStep('import');
   };
 
   /* ── Loading overlay ── */
@@ -208,6 +236,15 @@ function App() {
     </div>
   );
 
+  /* ── Auth still loading — show blank ── */
+  if (user === undefined) {
+    return (
+      <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="spinner" />
+      </div>
+    );
+  }
+
   /* ── Render ── */
   return (
     <div className="app">
@@ -219,17 +256,14 @@ function App() {
         </div>
       )}
 
-      {/* Your landing page — shown only on first visit */}
       {step === 'landing' && (
         <LandingPage onStart={() => setStep('login')} />
       )}
 
-      {/* Jeeva's login/register page */}
       {step === 'login' && (
         <LoginPage onLoginSuccess={handleLoginSuccess} />
       )}
 
-      {/* Game importer — username pre-filled from login */}
       {step === 'import' && (
         <div className="app-page-wrap">
           <div className="app-page-header">
@@ -241,7 +275,7 @@ function App() {
           <GameImporter
             onImport={handleGameImport}
             disabled={loading}
-            defaultUsername={loggedInUser || ''}
+            defaultUsername={username || ''}
           />
         </div>
       )}
@@ -272,52 +306,38 @@ function App() {
           onSelect={handleModeSelect}
           username={username}
           onLogout={handleReset}
+          onChessUsernameChanged={handleChessUsernameChanged}
         >
           {mountedModes.has('welcome') && (
             <div style={{ display: activeMode === 'welcome' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-              <WelcomePage
-                username={username}
-                profile={playerProfile}
-                onSelect={handleModeSelect}
-                onRefresh={handleRefreshData}
-              />
+              <WelcomePage username={username} profile={playerProfile} onSelect={handleModeSelect} onRefresh={handleRefreshData} />
             </div>
           )}
-
           {mountedModes.has('coach') && (
             <div style={{ display: activeMode === 'coach' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-              <OpeningCoach
-                username={username}
-                playerProfile={playerProfile}
-                isActive={activeMode === 'coach'}
-              />
+              <OpeningCoach username={username} playerProfile={playerProfile} isActive={activeMode === 'coach'} />
             </div>
           )}
-
           {mountedModes.has('explorer') && (
             <div style={{ display: activeMode === 'explorer' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
               <ChessExplorer />
             </div>
           )}
-
           {mountedModes.has('stockfish') && (
             <div style={{ display: activeMode === 'stockfish' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
               <EngineTraining username={username} />
             </div>
           )}
-
           {mountedModes.has('position') && (
             <div style={{ display: activeMode === 'position' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
               <CustomPosition />
             </div>
           )}
-
           {mountedModes.has('opponent') && (
             <div style={{ display: activeMode === 'opponent' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
               <TrainVsPlayer username={username} source={source} />
             </div>
           )}
-
           {mountedModes.has('playvs') && (
             <div style={{ display: activeMode === 'playvs' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
               <PlayVsStockfish />
@@ -329,4 +349,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  );
+}

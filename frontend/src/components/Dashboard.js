@@ -38,9 +38,9 @@ const MODES = [
   {
     id: 'custom',
     num: '04',
-    title: 'Custom Position',
-    sub: 'SET UP A POSITION',
-    desc: 'Enter any FEN or set up a position on the board to train from a specific starting point.',
+    title: 'Game Analysis',
+    sub: 'ANALYSE ANY GAME',
+    desc: 'Import a PGN, navigate every move, build variation trees, and get Stockfish analysis at any point.',
     accent: '#6B21A8',
     textColor: '#fff',
     available: false,

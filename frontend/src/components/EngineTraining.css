@@ -29,13 +29,21 @@
 .et-board-inner { display: flex; gap: 10px; align-items: stretch; }
 
 /* Eval bar */
+.et-eval-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .et-eval-bar-outer {
-  width: 12px;
-  background: var(--bg-3);
+  width: 26px;
+  background: var(--cream);
   border-radius: 6px;
   border: 1px solid var(--border);
   overflow: hidden;
-  height: min(620px, calc(100vh - 200px));
+  height: min(640px, calc(100vh - 200px));
   display: flex;
   flex-direction: column;
 }
@@ -43,7 +51,20 @@
 .et-eval-black { width: 100%; background: #1a1a1a; transition: height 0.4s ease; }
 .et-eval-white { width: 100%; background: var(--cream); transition: height 0.4s ease; }
 
-.et-board-wrap { width: min(620px, calc(100vh - 200px)); }
+.et-eval-score-badge {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--cream);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.et-board-wrap { width: min(640px, calc(100vh - 200px)); }
 
 /* History */
 .et-history {

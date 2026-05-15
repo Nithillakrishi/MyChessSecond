@@ -402,7 +402,7 @@
 .oc-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 580px 1fr;
+  grid-template-columns: 430px 1fr;
   overflow: hidden;
   transition: grid-template-columns 0.22s ease;
 }
@@ -430,17 +430,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
-  width: 18px;
+  width: 32px;
 }
 
 .oc-eval-track {
   flex: 1;
-  width: 12px;
+  width: 26px;
   border-radius: 6px;
   overflow: hidden;
-  background: var(--bg-3);
+  background: var(--cream);
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -459,14 +459,19 @@
   flex: 1;
 }
 
-.oc-eval-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--muted);
-  letter-spacing: 0.04em;
+
+.oc-eval-score-badge {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--cream);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
   text-align: center;
-  min-height: 12px;
 }
 
 /* ── Flip button (in move-nav row) ──────────────────── */
