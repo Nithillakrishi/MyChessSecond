@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
-import axios from 'axios';
 import { useBoardColors } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpeningByMoves } from '../utils/openingDetector';
 import './CustomPosition.css';
 import { CHESS_PIECES } from './boardPieces';
-
-const API_BASE = 'http://localhost:8000';
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -21,58 +18,145 @@ const EXAMPLE_FENS = [
 ];
 
 function useStockfishAnalyser() {
-  const engineRef = useRef(null);
-  const [sfInfo, setSfInfo] = useState({ score: 0, type: 'cp', depth: 0, bestMove: null, ready: false, pv: [] });
+  const engineRef    = useRef(null);
+  const nextFenRef   = useRef(null);
+  const stoppingRef  = useRef(false);
+  const isReadyRef   = useRef(false);
+  const isSearchRef  = useRef(false);
+  const [sfInfo, setSfInfo] = useState({ score: 0, type: 'cp', depth: 0, bestMove: null, ready: false });
+  const [lines, setLines] = useState([null, null, null, null]);
 
   useEffect(() => {
     const engine = new Worker(`${process.env.PUBLIC_URL}/stockfish-18-lite-single.js`);
     engineRef.current = engine;
 
+    const startSearch = (fen) => {
+      engine.postMessage(`position fen ${fen}`);
+      engine.postMessage('go depth 22');
+      isSearchRef.current = true;
+      stoppingRef.current = false;
+    };
+
     engine.onmessage = (e) => {
-      const line = typeof e.data === 'string' ? e.data : String(e.data);
-      if (line === 'readyok') { setSfInfo(p => ({ ...p, ready: true })); return; }
+      const msg = typeof e.data === 'string' ? e.data : String(e.data);
 
-      if (line.startsWith('info') && line.includes('score')) {
-        const cpMatch    = line.match(/score cp (-?\d+)/);
-        const mateMatch  = line.match(/score mate (-?\d+)/);
-        const depthMatch = line.match(/\bdepth (\d+)/);
-        const pvMatch    = line.match(/ pv (.+)/);
-        const depth = depthMatch ? parseInt(depthMatch[1]) : 0;
-        const pvMoves = pvMatch ? pvMatch[1].split(' ').slice(0, 5) : [];
-
-        if (mateMatch) {
-          setSfInfo(p => ({ ...p, score: parseInt(mateMatch[1]), type: 'mate', depth, pv: pvMoves }));
-        } else if (cpMatch) {
-          setSfInfo(p => ({ ...p, score: parseInt(cpMatch[1]) / 100, type: 'cp', depth, pv: pvMoves }));
+      if (msg === 'readyok') {
+        isReadyRef.current = true;
+        setSfInfo(p => ({ ...p, ready: true }));
+        if (nextFenRef.current) {
+          const fen = nextFenRef.current;
+          nextFenRef.current = null;
+          startSearch(fen);
         }
+        return;
       }
 
-      if (line.startsWith('bestmove')) {
-        const m = line.match(/bestmove (\S+)/);
-        if (m && m[1] !== '(none)') setSfInfo(p => ({ ...p, bestMove: m[1] }));
+      if (msg.startsWith('bestmove')) {
+        isSearchRef.current = false;
+        stoppingRef.current = false;
+        const bm = msg.match(/bestmove (\S+)/);
+        if (bm && bm[1] !== '(none)') setSfInfo(p => ({ ...p, bestMove: bm[1] }));
+        if (nextFenRef.current) {
+          const fen = nextFenRef.current;
+          nextFenRef.current = null;
+          startSearch(fen);
+        }
+        return;
+      }
+
+      if (stoppingRef.current) return;
+
+      if (msg.startsWith('info') && msg.includes('multipv')) {
+        const pvM    = msg.match(/multipv (\d+)/);
+        const cpM    = msg.match(/score cp (-?\d+)/);
+        const mateM  = msg.match(/score mate (-?\d+)/);
+        const depM   = msg.match(/\bdepth (\d+)/);
+        const pvIdx  = msg.indexOf(' pv ');
+        if (!pvM) return;
+        const n     = parseInt(pvM[1]);
+        const depth = depM ? parseInt(depM[1]) : 0;
+        if (depth < 6) return;
+        let evalScore = null;
+        if (cpM)   evalScore = parseInt(cpM[1]) / 100;
+        if (mateM) evalScore = parseInt(mateM[1]) > 0 ? 99 : -99;
+        const pvMoves = pvIdx >= 0 ? msg.slice(pvIdx + 4).trim().split(' ').slice(0, 8) : [];
+        if (n === 1) setSfInfo(p => ({ ...p, score: evalScore ?? p.score, type: mateM ? 'mate' : 'cp', depth }));
+        setLines(prev => { const next = [...prev]; next[n - 1] = { evalScore, pvMoves }; return next; });
       }
     };
 
     engine.postMessage('uci');
+    engine.postMessage('setoption name MultiPV value 4');
     engine.postMessage('ucinewgame');
     engine.postMessage('isready');
-
     return () => { engine.postMessage('quit'); engine.terminate(); };
   }, []);
 
   const analyse = useCallback((fen) => {
     if (!engineRef.current) return;
-    engineRef.current.postMessage('stop');
-    engineRef.current.postMessage(`position fen ${fen}`);
-    engineRef.current.postMessage('go depth 20');
-    setSfInfo(p => ({ ...p, bestMove: null, depth: 0, pv: [] }));
+    setSfInfo(p => ({ ...p, bestMove: null, depth: 0 }));
+    setLines([null, null, null, null]);
+    if (!isReadyRef.current) {
+      // Engine not ready yet — queue; readyok handler will start it
+      nextFenRef.current = fen;
+      return;
+    }
+    if (isSearchRef.current) {
+      // Engine busy — stop it, queue new FEN
+      nextFenRef.current = fen;
+      stoppingRef.current = true;
+      engineRef.current.postMessage('stop');
+    } else {
+      // Engine idle — start directly
+      engineRef.current.postMessage(`position fen ${fen}`);
+      engineRef.current.postMessage('go depth 22');
+      isSearchRef.current = true;
+    }
   }, []);
 
-  const stop = useCallback(() => {
-    engineRef.current?.postMessage('stop');
-  }, []);
+  return { sfInfo, lines, analyse };
+}
 
-  return { sfInfo, analyse, stop };
+function PVLine({ line, fen, lineNum, isWhiteTurn }) {
+  if (!line) return (
+    <div className="cp-pv-row cp-pv-loading">
+      <span className="cp-pv-num">{lineNum}</span>
+      <span className="cp-pv-eval">—</span>
+      <span className="cp-pv-moves">analysing…</span>
+    </div>
+  );
+  const { evalScore, pvMoves } = line;
+  const adj = evalScore == null ? null : (isWhiteTurn ? evalScore : -evalScore);
+  const evalStr = adj == null ? '—'
+    : adj >= 99 ? 'M' : adj <= -99 ? '-M'
+    : (adj >= 0 ? `+${adj.toFixed(2)}` : adj.toFixed(2));
+  const cls = adj == null ? '' : adj > 0.3 ? 'cp-pv-pos' : adj < -0.3 ? 'cp-pv-neg' : 'cp-pv-neu';
+  const sans = [];
+  try {
+    const g = new Chess(fen);
+    let moveNum = g.moveNumber();
+    let firstBlack = g.turn() === 'b';
+    for (const uci of pvMoves.slice(0, 7)) {
+      const r = g.move({ from: uci.slice(0,2), to: uci.slice(2,4), promotion: uci[4] || 'q' });
+      if (!r) break;
+      sans.push({ san: r.san, white: r.color === 'w', num: moveNum, first: sans.length === 0 && firstBlack });
+      if (r.color === 'b') moveNum++;
+    }
+  } catch {}
+  return (
+    <div className="cp-pv-row">
+      <span className="cp-pv-num">{lineNum}</span>
+      <span className={`cp-pv-eval ${cls}`}>{evalStr}</span>
+      <span className="cp-pv-moves">
+        {sans.map((m, i) => (
+          <React.Fragment key={i}>
+            {(m.white || m.first) && <span className="cp-pv-movenum">{m.num}{m.white ? '.' : '…'}</span>}
+            <span className="cp-pv-movesym">{m.san} </span>
+          </React.Fragment>
+        ))}
+      </span>
+    </div>
+  );
 }
 
 function uciToSan(fen, uciMove) {
@@ -93,17 +177,30 @@ function evalLabel(sfInfo, isWhiteTurn) {
 
 export default function CustomPosition() {
   const { dark: boardDark, light: boardLight } = useBoardColors();
+
+  // ── Mode ──
+  const [mode, setMode] = useState('position'); // 'position' | 'pgn'
+
+  // ── Position mode ──
   const [fenInput, setFenInput] = useState(STARTING_FEN);
   const [fenError, setFenError]  = useState('');
   const [game, setGame]           = useState(new Chess());
   const [fen, setFen]             = useState(STARTING_FEN);
   const [sanHistory, setSanHistory] = useState([]);
-  const [startFen, setStartFen] = useState(STARTING_FEN);
+  const startFenRef = useRef(STARTING_FEN);
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [lastMove, setLastMove]   = useState(null);
-  const [explorerMoves, setExplorerMoves] = useState([]);
-  const [explorerLoading, setExplorerLoading] = useState(false);
-  const { sfInfo, analyse } = useStockfishAnalyser();
+
+  // ── PGN mode ──
+  const [pgnInput, setPgnInput] = useState('');
+  const [pgnError, setPgnError] = useState('');
+  const [pgnFens, setPgnFens]   = useState([]);
+  const [pgnMoves, setPgnMoves] = useState([]);
+  const [pgnIdx, setPgnIdx]     = useState(0);
+  const [pgnHeaders, setPgnHeaders] = useState({});
+  const moveListRef = useRef(null);
+
+  const { sfInfo, lines, analyse } = useStockfishAnalyser();
 
   const loadFen = useCallback((f) => {
     try {
@@ -111,42 +208,81 @@ export default function CustomPosition() {
       setGame(g);
       setFen(g.fen());
       setFenInput(g.fen());
-      setStartFen(g.fen());
+      startFenRef.current = g.fen();
       setFenError('');
       setLastMove(null);
-      setExplorerMoves([]);
       setSanHistory([]);
       setSelectedSquare(null);
       analyse(g.fen());
-      fetchExplorer(g.fen());
     } catch {
       setFenError('Invalid FEN string. Please check and try again.');
     }
   }, [analyse]);
 
-  const fetchExplorer = async (currentFen) => {
-    setExplorerLoading(true);
-    try {
-      const res = await axios.get(`${API_BASE}/opening-explorer`, { params: { fen: currentFen } });
-      setExplorerMoves(res.data?.moves || []);
-    } catch {
-      setExplorerMoves([]);
-    } finally {
-      setExplorerLoading(false);
-    }
-  };
-
   useEffect(() => {
     analyse(STARTING_FEN);
-    fetchExplorer(STARTING_FEN);
   }, []); // eslint-disable-line
+
+  // ── PGN loader ──
+  function loadPgnGame(text) {
+    try {
+      const g = new Chess();
+      g.loadPgn(text.trim());
+      const headers = g.header();
+      const history = g.history({ verbose: true });
+      const g2 = new Chess();
+      const fens = [g2.fen()];
+      const sans = [];
+      for (const m of history) {
+        g2.move(m.san);
+        fens.push(g2.fen());
+        sans.push(m.san);
+      }
+      setPgnHeaders(headers);
+      setPgnFens(fens);
+      setPgnMoves(sans);
+      setPgnIdx(0);
+      setPgnError('');
+      analyse(fens[0]);
+    } catch {
+      setPgnError('Invalid PGN. Please check format and try again.');
+    }
+  }
+
+  function pgnGoTo(idx) {
+    if (pgnFens.length === 0) return;
+    const clamped = Math.max(0, Math.min(pgnFens.length - 1, idx));
+    setPgnIdx(clamped);
+    analyse(pgnFens[clamped]);
+  }
+
+  // Keyboard navigation in PGN mode
+  useEffect(() => {
+    if (mode !== 'pgn' || pgnFens.length === 0) return;
+    const handleKey = (e) => {
+      if (e.key === 'ArrowLeft') {
+        setPgnIdx(prev => { const n = Math.max(0, prev - 1); analyse(pgnFens[n]); return n; });
+      } else if (e.key === 'ArrowRight') {
+        setPgnIdx(prev => { const n = Math.min(pgnFens.length - 1, prev + 1); analyse(pgnFens[n]); return n; });
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [mode, pgnFens, analyse]);
+
+  // Auto-scroll active move into view
+  useEffect(() => {
+    if (!moveListRef.current) return;
+    const active = moveListRef.current.querySelector('.cp-ml-active');
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [pgnIdx]);
 
   function commitMove(g, move, newHistory) {
     setGame(g); setFen(g.fen()); setFenInput(g.fen());
     setLastMove({ from: move.from, to: move.to });
-    setFenError(''); setExplorerMoves([]);
+    setFenError('');
     setSanHistory(newHistory); setSelectedSquare(null);
-    analyse(g.fen()); fetchExplorer(g.fen());
+    analyse(g.fen());
   }
 
   function onDrop(from, to) {
@@ -182,45 +318,32 @@ export default function CustomPosition() {
     setFen(g.fen());
     setFenInput(g.fen());
     setLastMove({ from: m.from, to: m.to });
-    setExplorerMoves([]);
     setSanHistory(h => [...h, m.san]);
     analyse(g.fen());
-    fetchExplorer(g.fen());
-  }
-
-  function playExplorerMove(uciMove) {
-    if (!uciMove) return;
-    const g = new Chess(game.fen());
-    let m;
-    if (uciMove.length >= 4 && uciMove[0].match(/[a-h]/) && uciMove[2].match(/[a-h]/)) {
-      m = g.move({ from: uciMove.slice(0, 2), to: uciMove.slice(2, 4), promotion: uciMove[4] || 'q' });
-    } else {
-      try { m = g.move(uciMove); } catch { return; }
-    }
-    if (!m) return;
-    setGame(g);
-    setFen(g.fen());
-    setFenInput(g.fen());
-    setLastMove({ from: m.from, to: m.to });
-    setExplorerMoves([]);
-    setSanHistory(h => [...h, m.san]);
-    analyse(g.fen());
-    fetchExplorer(g.fen());
   }
 
   function goBack() {
-    if (sanHistory.length === 0) return;
-    const newHistory = sanHistory.slice(0, -1);
-    const base = new Chess(startFen);
-    for (const san of newHistory) { try { base.move(san); } catch {} }
-    setGame(base); setFen(base.fen()); setFenInput(base.fen());
-    setLastMove(null); setExplorerMoves([]);
-    setSanHistory(newHistory); setSelectedSquare(null);
-    analyse(base.fen()); fetchExplorer(base.fen());
+    setSanHistory(prev => {
+      if (prev.length === 0) return prev;
+      const newHistory = prev.slice(0, -1);
+      const base = new Chess(startFenRef.current);
+      for (const san of newHistory) { try { base.move(san); } catch {} }
+      setGame(base);
+      setFen(base.fen());
+      setFenInput(base.fen());
+      setLastMove(null);
+      setSelectedSquare(null);
+      analyse(base.fen());
+      return newHistory;
+    });
   }
 
+  // Derived values
+  const activeFen = mode === 'pgn' && pgnFens.length > 0 ? pgnFens[pgnIdx] : fen;
+  const activeHistory = mode === 'pgn' ? pgnMoves.slice(0, pgnIdx) : sanHistory;
+
   const legalMoveDots = {};
-  if (selectedSquare) {
+  if (mode === 'position' && selectedSquare) {
     game.moves({ square: selectedSquare, verbose: true }).forEach(m => {
       legalMoveDots[m.to] = {
         background: game.get(m.to)
@@ -230,141 +353,206 @@ export default function CustomPosition() {
       };
     });
   }
-  const customSquareStyles = {
+  const customSquareStyles = mode === 'position' ? {
     ...(lastMove ? {
       [lastMove.from]: { background: 'rgba(229,139,0,0.35)' },
       [lastMove.to]:   { background: 'rgba(229,139,0,0.45)' },
     } : {}),
     ...(selectedSquare ? { [selectedSquare]: { background: 'rgba(255,215,0,0.55)' } } : {}),
     ...legalMoveDots,
-  };
+  } : {};
 
-  const isWhiteTurn = game.turn() === 'w';
+  const activeChess = (() => { try { return new Chess(activeFen); } catch { return new Chess(); } })();
+  const isWhiteTurn = activeChess.turn() === 'w';
   const evalVal = evalLabel(sfInfo, isWhiteTurn);
-  const evalPositive = sfInfo.type === 'mate' ? sfInfo.score > 0 : sfInfo.score >= 0;
-  const bestSan = uciToSan(fen, sfInfo.bestMove);
+  const bestSan = mode === 'position' ? uciToSan(activeFen, sfInfo.bestMove) : null;
+  const boardSize = Math.min(500, Math.max(300, window.innerWidth - 420));
 
   return (
     <div className="cp-root">
-      {/* FEN bar */}
-      <div className="cp-fen-bar">
-        <div className="cp-fen-input-wrap">
-          <input
-            className={`cp-fen-input ${fenError ? 'cp-fen-error' : ''}`}
-            value={fenInput}
-            onChange={e => setFenInput(e.target.value)}
-            placeholder="Paste FEN string…"
-            onKeyDown={e => e.key === 'Enter' && loadFen(fenInput)}
-            spellCheck={false}
-          />
-          <button className="cp-load-btn" onClick={() => loadFen(fenInput)}>Load</button>
-        </div>
-        {fenError && <span className="cp-fen-err-msg">{fenError}</span>}
-        <div className="cp-examples">
-          {EXAMPLE_FENS.map(ex => (
-            <button key={ex.label} className="cp-example-chip" onClick={() => loadFen(ex.fen)}>
-              {ex.label}
-            </button>
-          ))}
-        </div>
+      {/* Mode tabs */}
+      <div className="cp-mode-tabs">
+        <button
+          className={`cp-mode-tab ${mode === 'position' ? 'cp-mode-tab-active' : ''}`}
+          onClick={() => setMode('position')}
+        >
+          Custom Position
+        </button>
+        <button
+          className={`cp-mode-tab ${mode === 'pgn' ? 'cp-mode-tab-active' : ''}`}
+          onClick={() => setMode('pgn')}
+        >
+          Load Game
+        </button>
       </div>
+
+      {/* FEN bar — position mode */}
+      {mode === 'position' && (
+        <div className="cp-fen-bar">
+          <div className="cp-fen-input-wrap">
+            <input
+              className={`cp-fen-input ${fenError ? 'cp-fen-error' : ''}`}
+              value={fenInput}
+              onChange={e => setFenInput(e.target.value)}
+              placeholder="Paste FEN string…"
+              onKeyDown={e => e.key === 'Enter' && loadFen(fenInput)}
+              spellCheck={false}
+            />
+            <button className="cp-load-btn" onClick={() => loadFen(fenInput)}>Load</button>
+          </div>
+          {fenError && <span className="cp-fen-err-msg">{fenError}</span>}
+          <div className="cp-examples">
+            {EXAMPLE_FENS.map(ex => (
+              <button key={ex.label} className="cp-example-chip" onClick={() => loadFen(ex.fen)}>
+                {ex.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PGN bar — pgn mode */}
+      {mode === 'pgn' && (
+        <div className="cp-pgn-bar">
+          <div className="cp-pgn-input-wrap">
+            <textarea
+              className={`cp-pgn-textarea ${pgnError ? 'cp-fen-error' : ''}`}
+              value={pgnInput}
+              onChange={e => setPgnInput(e.target.value)}
+              placeholder="Paste PGN here… (e.g. from Chess.com, Lichess, or any PGN export)"
+              spellCheck={false}
+              rows={3}
+            />
+            <button className="cp-load-btn cp-pgn-load-btn" onClick={() => loadPgnGame(pgnInput)}>
+              Load
+            </button>
+          </div>
+          {pgnError && <span className="cp-fen-err-msg">{pgnError}</span>}
+        </div>
+      )}
 
       {/* Main layout */}
       <div className="cp-layout">
         {/* Board */}
         <div className="cp-board-col">
           <div className="cp-eval-bar-wrap">
-            <div className="cp-eval-bar-outer">
-              <div
-                className="cp-eval-bar-fill"
-                style={{ height: `${Math.min(90, Math.max(10, 50 + (sfInfo.score || 0) * 5))}%` }}
-              />
+            <div className="cp-eval-bar-outer" style={{ height: boardSize }}>
+              <div className="cp-eval-bar-black" style={{ height: `${Math.min(90, Math.max(10, 50 - (isWhiteTurn ? sfInfo.score : -sfInfo.score) * 4))}%` }} />
+              <div className="cp-eval-bar-white" style={{ height: `${Math.min(90, Math.max(10, 50 + (isWhiteTurn ? sfInfo.score : -sfInfo.score) * 4))}%` }} />
             </div>
+            <div className="cp-eval-score-badge">{sfInfo.ready ? evalVal : '—'}</div>
           </div>
-          <div className="cp-board-wrap">
+          <div className="cp-board-wrap" style={{ width: boardSize }}>
             <Chessboard customPieces={CHESS_PIECES}
-              position={fen}
-              onPieceDrop={onDrop}
-              onSquareClick={onSquareClick}
+              position={activeFen}
+              onPieceDrop={mode === 'position' ? onDrop : () => false}
+              onSquareClick={mode === 'position' ? onSquareClick : undefined}
+              arePiecesDraggable={mode === 'position'}
               boardOrientation="white"
+              boardWidth={boardSize}
               customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
               customDarkSquareStyle={{ backgroundColor: boardDark }}
               customLightSquareStyle={{ backgroundColor: boardLight }}
               customSquareStyles={customSquareStyles}
             />
           </div>
+
+          {/* PGN navigation — below board */}
+          {mode === 'pgn' && pgnFens.length > 0 && (
+            <div className="cp-pgn-nav">
+              <button className="cp-pgn-nav-btn" onClick={() => pgnGoTo(0)} disabled={pgnIdx === 0} title="First move">⏮</button>
+              <button className="cp-pgn-nav-btn" onClick={() => pgnGoTo(pgnIdx - 1)} disabled={pgnIdx === 0} title="Previous (←)">◀</button>
+              <span className="cp-pgn-pos-label">
+                {pgnIdx === 0 ? 'Start' : `Move ${pgnIdx} / ${pgnFens.length - 1}`}
+              </span>
+              <button className="cp-pgn-nav-btn" onClick={() => pgnGoTo(pgnIdx + 1)} disabled={pgnIdx === pgnFens.length - 1} title="Next (→)">▶</button>
+              <button className="cp-pgn-nav-btn" onClick={() => pgnGoTo(pgnFens.length - 1)} disabled={pgnIdx === pgnFens.length - 1} title="Last move">⏭</button>
+            </div>
+          )}
         </div>
 
-        {/* Analysis panel */}
+        {/* Panel */}
         <div className="cp-panel">
-          <OpeningBadge opening={detectOpeningByMoves(sanHistory)} />
-          {/* Eval */}
-          <div className="cp-eval-card">
-            <div className={`cp-eval-score ${evalPositive ? 'cp-eval-pos' : 'cp-eval-neg'}`}>
-              {sfInfo.ready ? evalVal : '—'}
-            </div>
-            <div className="cp-eval-meta">
-              <span>Stockfish 18</span>
-              {sfInfo.depth > 0 && <span>depth {sfInfo.depth}</span>}
-            </div>
-
-            {bestSan && (
-              <button className="cp-best-move-btn" onClick={playBestMove}>
-                <span className="cp-bm-label">Best move</span>
-                <span className="cp-bm-move">{bestSan}</span>
-              </button>
-            )}
-
-            {sfInfo.pv && sfInfo.pv.length > 0 && (
-              <div className="cp-pv">
-                <span className="cp-pv-label">PV:</span>
-                {sfInfo.pv.map((m, i) => <span key={i} className="cp-pv-move">{m}</span>)}
-              </div>
-            )}
-          </div>
-
-          {/* Board controls */}
-          <div className="cp-controls">
-            <button className="cp-ctrl-btn" onClick={goBack} disabled={game.history().length === 0}>
-              ← Undo
-            </button>
-            <button className="cp-ctrl-btn" onClick={() => loadFen(STARTING_FEN)}>
-              Reset
-            </button>
-          </div>
-
-          {/* Explorer */}
-          <div className="cp-explorer-card">
-            <div className="cp-explorer-title">
-              ChessDB Explorer
-              {explorerLoading && <span className="cp-explorer-loading">loading…</span>}
-            </div>
-            {explorerMoves.length > 0 ? (
-              <div className="cp-explorer-moves">
-                {explorerMoves.slice(0, 8).map((mv, i) => {
-                  const wr = mv.winrate != null ? Math.round(mv.winrate) : null;
-                  const scoreLabel = mv.score_cp != null
-                    ? (mv.score_cp >= 0 ? `+${(mv.score_cp/100).toFixed(1)}` : `${(mv.score_cp/100).toFixed(1)}`)
-                    : null;
+          {/* PGN: game info + move list */}
+          {mode === 'pgn' && pgnFens.length > 0 && (
+            <>
+              {(pgnHeaders.White || pgnHeaders.Black) && (
+                <div className="cp-game-info">
+                  <span className="cp-game-player cp-game-white">
+                    <span className="cp-game-dot cp-white" />
+                    {pgnHeaders.White || '?'}
+                  </span>
+                  <span className="cp-game-vs">vs</span>
+                  <span className="cp-game-player cp-game-black">
+                    <span className="cp-game-dot cp-black" />
+                    {pgnHeaders.Black || '?'}
+                  </span>
+                  {pgnHeaders.Result && (
+                    <span className="cp-game-result">{pgnHeaders.Result}</span>
+                  )}
+                </div>
+              )}
+              <div className="cp-move-list" ref={moveListRef}>
+                <span
+                  className={`cp-ml-start ${pgnIdx === 0 ? 'cp-ml-active' : ''}`}
+                  onClick={() => pgnGoTo(0)}
+                >
+                  Start
+                </span>
+                {pgnMoves.map((san, i) => {
+                  const isWhiteMove = i % 2 === 0;
+                  const isActive = pgnIdx === i + 1;
                   return (
-                    <button key={i} className="cp-explorer-row" onClick={() => playExplorerMove(mv.uci || mv.san)}>
-                      <span className="cp-ex-move">{mv.san}</span>
-                      <span className="cp-ex-games">{mv.rank_label || ''}</span>
-                      {wr !== null && (
-                        <div className="cp-ex-bar">
-                          <div className="cp-ex-bar-fill" style={{ width: `${wr}%` }} />
-                        </div>
+                    <React.Fragment key={i}>
+                      {isWhiteMove && (
+                        <span className="cp-ml-num">{Math.floor(i / 2) + 1}.</span>
                       )}
-                      {wr !== null && <span className="cp-ex-wr">{wr}%</span>}
-                      {scoreLabel && <span className="cp-ex-score">{scoreLabel}</span>}
-                    </button>
+                      <span
+                        className={`cp-ml-move ${isActive ? 'cp-ml-active' : ''}`}
+                        onClick={() => pgnGoTo(i + 1)}
+                      >
+                        {san}
+                      </span>
+                    </React.Fragment>
                   );
                 })}
               </div>
-            ) : (
-              !explorerLoading && <p className="cp-no-moves">No explorer data for this position.</p>
-            )}
+            </>
+          )}
+
+          <OpeningBadge opening={detectOpeningByMoves(activeHistory)} />
+
+          {/* Engine lines */}
+          <div className="cp-eval-card">
+            <div className="cp-eval-header">
+              <span className="cp-eval-title">⚡ Stockfish 18</span>
+              <div className="cp-eval-meta">
+                {sfInfo.depth > 0 && <span>depth {sfInfo.depth}</span>}
+                {bestSan && (
+                  <button className="cp-best-move-btn" onClick={playBestMove}>
+                    Best: <strong>{bestSan}</strong>
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="cp-pv-list">
+              {[0,1,2,3].map(i => (
+                <PVLine key={i} line={lines[i]} fen={activeFen} lineNum={i+1} isWhiteTurn={isWhiteTurn} />
+              ))}
+            </div>
           </div>
+
+          {/* Controls */}
+          {mode === 'position' && (
+            <div className="cp-controls">
+              <button className="cp-ctrl-btn" onClick={goBack} disabled={sanHistory.length === 0}>
+                ← Undo
+              </button>
+              <button className="cp-ctrl-btn" onClick={() => loadFen(STARTING_FEN)}>
+                Reset
+              </button>
+            </div>
+          )}
 
           {/* Turn indicator */}
           <div className="cp-turn">

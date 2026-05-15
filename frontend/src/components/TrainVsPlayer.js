@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import axios from 'axios';
-import { useBoardColors, useArrowColors } from '../contexts/ThemeContext';
+import { useBoardColors, useArrowColors, useTheme, ARROW_BASE_COLOR } from '../contexts/ThemeContext';
 import OpeningBadge from './OpeningBadge';
 import { detectOpening, detectOpeningByMoves } from '../utils/openingDetector';
 import './TrainVsPlayer.css';
@@ -14,25 +14,26 @@ const SOURCES = [
   { id: 'lichess',   label: 'Lichess'   },
 ];
 
-function freqToArrowColor(ratio, isMyMove) {
-  const alpha = (0.25 + ratio * 0.75).toFixed(2);
-  return isMyMove
-    ? `rgba(127,166,80,${alpha})`
-    : `rgba(229,139,0,${alpha})`;
+function freqToArrowColor(ratio, isMyMove, rgb) {
+  const alpha = isMyMove
+    ? (0.45 + ratio * 0.55).toFixed(2)
+    : (0.25 + ratio * 0.45).toFixed(2);
+  return `rgba(${rgb},${alpha})`;
 }
 
-function buildArrows(moves, fen, isMyMove) {
+function buildArrows(moves, fen, isMyMove, rgb) {
   if (!moves || moves.length === 0) return [];
   const totalFreq = moves.reduce((s, m) => s + (m.total || 1), 0);
   const arrows = [];
   try {
+    const legal = new Set(new Chess(fen).moves({ verbose: true }).map(m => m.from + m.to));
     for (const mv of moves.slice(0, 6)) {
       try {
         const tmp = new Chess(fen);
         const result = tmp.move(mv.san);
-        if (!result) continue;
+        if (!result || !legal.has(result.from + result.to)) continue;
         const ratio = (mv.total || 1) / totalFreq;
-        arrows.push([result.from, result.to, freqToArrowColor(ratio, isMyMove)]);
+        arrows.push([result.from, result.to, freqToArrowColor(ratio, isMyMove, rgb)]);
       } catch { /* skip invalid */ }
     }
   } catch { /* invalid fen */ }
@@ -43,7 +44,8 @@ function buildArrows(moves, fen, isMyMove) {
 function useEvalBar() {
   const engineRef   = React.useRef(null);
   const readyRef    = React.useRef(false);
-  const pendingRef  = React.useRef(null);
+  const nextFenRef  = React.useRef(null);  // fen queued to analyse after engine stops
+  const stoppingRef = React.useRef(false); // true between 'stop' and 'bestmove'
   const lastFenRef  = React.useRef('');
   const [score, setScore]       = React.useState(0);
   const [topMoves, setTopMoves] = React.useState([]);
@@ -61,13 +63,26 @@ function useEvalBar() {
       }
       if (line === 'readyok') {
         readyRef.current = true;
-        if (pendingRef.current) {
-          engine.postMessage(`position fen ${pendingRef.current}`);
+        if (nextFenRef.current) {
+          engine.postMessage(`position fen ${nextFenRef.current}`);
           engine.postMessage('go depth 16');
-          pendingRef.current = null;
+          nextFenRef.current = null;
+          stoppingRef.current = false;
         }
         return;
       }
+      if (line.startsWith('bestmove')) {
+        stoppingRef.current = false;
+        if (nextFenRef.current) {
+          engine.postMessage(`position fen ${nextFenRef.current}`);
+          engine.postMessage('go depth 16');
+          nextFenRef.current = null;
+        }
+        return;
+      }
+      // Drop all info messages while stopping — they belong to the previous position
+      if (stoppingRef.current) return;
+
       const isLine1 = !line.includes('multipv') || line.includes('multipv 1');
       if (isLine1 && line.includes('score cp')) {
         const m = line.match(/score cp (-?\d+)/);
@@ -108,13 +123,10 @@ function useEvalBar() {
     if (!engineRef.current) return;
     lastFenRef.current = fen;
     setTopMoves([]);
+    nextFenRef.current = fen;
+    stoppingRef.current = true;
     engineRef.current.postMessage('stop');
-    if (readyRef.current) {
-      engineRef.current.postMessage(`position fen ${fen}`);
-      engineRef.current.postMessage('go depth 16');
-    } else {
-      pendingRef.current = fen;
-    }
+    // New analysis starts when 'bestmove' arrives (or 'readyok' if not ready)
   }, []);
 
   return { score, analyse, topMoves };
@@ -124,10 +136,14 @@ function EvalBar({ score, playerColor, isWhiteTurn }) {
   const whiteScore = isWhiteTurn ? score : -score;
   const whitePct = Math.min(90, Math.max(10, 50 + whiteScore * 4));
   const displayPct = playerColor === 'white' ? whitePct : 100 - whitePct;
+  const evalStr = whiteScore >= 0 ? `+${whiteScore.toFixed(1)}` : whiteScore.toFixed(1);
   return (
-    <div className="tvp-eval-bar-outer">
-      <div className="tvp-eval-bar-fill" style={{ height: `${100 - displayPct}%` }} />
-      <div className="tvp-eval-score">{whiteScore >= 0 ? `+${whiteScore.toFixed(1)}` : whiteScore.toFixed(1)}</div>
+    <div className="tvp-eval-wrap">
+      <div className="tvp-eval-bar-outer">
+        <div className="tvp-eval-bar-fill" style={{ height: `${100 - displayPct}%` }} />
+        <div className="tvp-eval-bar-white" style={{ height: `${displayPct}%` }} />
+      </div>
+      <div className="tvp-eval-score">{evalStr}</div>
     </div>
   );
 }
@@ -148,6 +164,8 @@ function ResultsBar({ wins, draws, losses }) {
 
 export default function TrainVsPlayer({ username: myUsername, source: mySource }) {
   const { dark: boardDark, light: boardLight } = useBoardColors();
+  const { theme } = useTheme();
+  const arrowRgb = ARROW_BASE_COLOR[theme] || ARROW_BASE_COLOR.classic;
   const [phase, setPhase] = useState('setup');
   const [opponentUsername, setOpponentUsername] = useState('');
   const [oppSource, setOppSource] = useState('chess.com');
@@ -159,7 +177,6 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
   // Explorer state
   const [game, setGame] = useState(new Chess());
   const [fen, setFen] = useState(new Chess().fen());
-  const [arrows, setArrows] = useState([]);
   const [lastMove, setLastMove] = useState(null);
   const [moves, setMoves] = useState([]);       // [{san, total, wins, draws, losses}]
   const [movesLoading, setMovesLoading] = useState(false);
@@ -168,6 +185,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
   const [sanHistory, setSanHistory] = useState([]);   // display: ['e4','e5',...]
   const [fenHistory, setFenHistory] = useState([new Chess().fen()]); // all FENs for opening detection
   const [contextText, setContextText] = useState('');
+  const [selectedSquare, setSelectedSquare] = useState(null);
 
   const { score, analyse, topMoves } = useEvalBar();
   const arrowColors = useArrowColors();
@@ -183,6 +201,11 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
     } catch { return []; }
   }, [topMoves, fen, arrowColors]);
   const myColor = playerColor === 'white' ? 'w' : 'b';
+  const isMyTurn = game.turn() === myColor;
+  const arrows = useMemo(
+    () => buildArrows(moves, fen, isMyTurn, arrowRgb),
+    [moves, fen, isMyTurn, arrowRgb]
+  );
 
   // Progress ticker while loading
   useEffect(() => {
@@ -207,7 +230,6 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
       });
       const mvs = res.data?.moves || [];
       setMoves(mvs);
-      setArrows(buildArrows(mvs, currentFen, isMyTurn));
       setContextText(
         isMyTurn
           ? `Showing moves played by ${myUsername} (you) in this position. Playing as ${playerColor}.`
@@ -215,7 +237,6 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
       );
     } catch {
       setMoves([]);
-      setArrows([]);
       setContextText('No data for this position.');
     } finally {
       setMovesLoading(false);
@@ -235,17 +256,34 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
     setGame(g);
     setFen(g.fen());
     setLastMove({ from: move.from, to: move.to });
-    setArrows([]);
+    setMoves([]);
     fetchMoves(g.fen(), g);
     analyse(g.fen());   // also calls setTopMoves([]) internally
     return true;
   }
 
-  function onDrop(from, to, piece) {
+  function onDrop(from, to) {
     const g = new Chess(game.fen());
-    const move = g.move({ from, to, promotion: piece?.slice(-1)?.toLowerCase() || 'q' });
+    let move;
+    try { move = g.move({ from, to, promotion: 'q' }); } catch { return false; }
     if (!move) return false;
+    setSelectedSquare(null);
     return applyMove(move.san);
+  }
+
+  function onSquareClick(square) {
+    if (selectedSquare) {
+      const g = new Chess(game.fen());
+      let move;
+      try { move = g.move({ from: selectedSquare, to: square, promotion: 'q' }); } catch {}
+      if (move) { setSelectedSquare(null); applyMove(move.san); return; }
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+      else setSelectedSquare(null);
+    } else {
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) setSelectedSquare(square);
+    }
   }
 
   function handleBack() {
@@ -258,7 +296,8 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
     setGame(g);
     setFen(g.fen());
     setLastMove(null);
-    setArrows([]);
+    setMoves([]);
+    setSelectedSquare(null);
     fetchMoves(g.fen(), g);
     analyse(g.fen());
   }
@@ -268,10 +307,11 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
     setGame(g);
     setFen(g.fen());
     setLastMove(null);
-    setArrows([]);
     setMoveHistory([]);
     setSanHistory([]);
     setFenHistory([g.fen()]);
+    setMoves([]);
+    setSelectedSquare(null);
     fetchMoves(g.fen(), g);
     analyse(g.fen());
   }
@@ -299,7 +339,6 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
       setLastMove(null);
       const mvs = res.data?.moves || [];
       setMoves(mvs);
-      setArrows(buildArrows(mvs, g.fen(), g.turn() === myColor));
       setContextText(
         g.turn() === myColor
           ? `Showing moves played by ${myUsername} (you) in this position. Playing as ${playerColor}.`
@@ -316,11 +355,25 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
     }
   }
 
-  const customSquareStyles = {};
-  if (lastMove) {
-    customSquareStyles[lastMove.from] = { background: 'rgba(229,139,0,0.3)' };
-    customSquareStyles[lastMove.to]   = { background: 'rgba(229,139,0,0.4)' };
+  const legalMoveDots = {};
+  if (selectedSquare) {
+    game.moves({ square: selectedSquare, verbose: true }).forEach(m => {
+      legalMoveDots[m.to] = {
+        background: game.get(m.to)
+          ? 'radial-gradient(circle, rgba(0,0,0,.35) 85%, transparent 85%)'
+          : 'radial-gradient(circle, rgba(0,0,0,.25) 30%, transparent 30%)',
+        borderRadius: '50%',
+      };
+    });
   }
+  const customSquareStyles = {
+    ...(lastMove ? {
+      [lastMove.from]: { background: 'rgba(229,139,0,0.3)' },
+      [lastMove.to]:   { background: 'rgba(229,139,0,0.4)' },
+    } : {}),
+    ...(selectedSquare ? { [selectedSquare]: { background: 'rgba(255,215,0,0.55)' } } : {}),
+    ...legalMoveDots,
+  };
 
   // Format move history pairs: "1.e4 e5  2.Nf3 Nc6"
   const historyPairs = [];
@@ -390,11 +443,11 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
           <div className="tvp-legend">
             <div className="tvp-legend-title">Arrow guide</div>
             <div className="tvp-legend-row">
-              <div className="tvp-legend-arrow tvp-arrow-green" />
+              <div className="tvp-legend-arrow" style={{ background: `rgba(${arrowRgb},0.9)` }} />
               <span>Your moves — darker = more frequent</span>
             </div>
             <div className="tvp-legend-row">
-              <div className="tvp-legend-arrow tvp-arrow-gold" />
+              <div className="tvp-legend-arrow" style={{ background: `rgba(${arrowRgb},0.5)` }} />
               <span>Opponent moves — darker = more frequent</span>
             </div>
           </div>
@@ -404,7 +457,6 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
   }
 
   /* ── Explorer phase ── */
-  const isMyTurn = game.turn() === myColor;
   const boardSize = Math.min(500, window.innerWidth - 340);
   const opening = detectOpening(fenHistory) || detectOpeningByMoves(sanHistory);
 
@@ -420,6 +472,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
               <Chessboard customPieces={CHESS_PIECES}
                 position={fen}
                 onPieceDrop={onDrop}
+                onSquareClick={onSquareClick}
                 boardOrientation={playerColor}
                 customArrows={[...stockfishArrows, ...arrows]}
                 customArrowColor="rgba(0,0,0,0)"
