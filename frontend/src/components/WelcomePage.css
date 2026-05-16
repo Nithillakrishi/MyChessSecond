@@ -146,7 +146,7 @@
 .wp-charts-row {
   display: flex;
   gap: 14px;
-  align-items: stretch;
+  align-items: flex-start;
   flex-wrap: wrap;
 }
 
