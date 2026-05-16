@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import GameImporter from './components/GameImporter';
 import Questionnaire from './components/Questionnaire';
 import OpeningCoach from './components/OpeningCoach';
@@ -27,11 +28,33 @@ function extractError(err, fallback) {
 
 function AppInner() {
   const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Steps: landing | login | import | questionnaire | app
-  const [step, setStep] = useState('landing');
-  const [activeMode, setActiveMode] = useState('welcome');
-  const [mountedModes, setMountedModes] = useState(() => new Set(['welcome']));
+  // Derive step and activeMode from URL — URL is source of truth
+  const path = location.pathname;
+  let step = 'landing';
+  if (path === '/login') step = 'login';
+  else if (path === '/import') step = 'import';
+  else if (path === '/questionnaire') step = 'questionnaire';
+  else if (path.startsWith('/app')) step = 'app';
+
+  const activeModeMatch = path.match(/^\/app\/([^/]+)/);
+  const activeMode = activeModeMatch ? activeModeMatch[1] : 'welcome';
+
+  // Keep modes mounted (hidden) once visited to preserve state
+  const [mountedModes, setMountedModes] = useState(() => {
+    const match = window.location.pathname.match(/^\/app\/([^/]+)/);
+    const init = match ? match[1] : 'welcome';
+    return new Set([init, 'welcome']);
+  });
+
+  useEffect(() => {
+    setMountedModes(prev => {
+      if (prev.has(activeMode)) return prev;
+      const next = new Set(prev); next.add(activeMode); return next;
+    });
+  }, [activeMode]);
 
   const [playerProfile, setPlayerProfile] = useState(null);
   const [username, setUsername] = useState('');
@@ -45,14 +68,12 @@ function AppInner() {
   const [error, setError] = useState(null);
 
   // ── Auth session restore ──
-  // Fires when Supabase resolves the session (including on page refresh from another device)
   useEffect(() => {
-    if (user === undefined) return; // still loading auth state
+    if (user === undefined) return;
 
     if (!user || !profile) {
-      // Signed out — reset to start
-      if (step === 'app' || step === 'import' || step === 'questionnaire') {
-        setStep('login');
+      if (path.startsWith('/app') || path === '/import' || path === '/questionnaire') {
+        navigate('/login');
         setUsername('');
         setPlayerProfile(null);
       }
@@ -60,39 +81,33 @@ function AppInner() {
     }
 
     if (!profile.chess_username) {
-      // Signed in with Google but hasn't set chess username yet → LoginPage handles step 2
-      setStep('login');
+      navigate('/login');
       return;
     }
 
-    // Signed in with chess username set — restore session
-    const savedUsername  = profile.chess_username;
-    const savedSource    = profile.chess_source || 'chess.com';
+    const savedUsername = profile.chess_username;
+    const savedSource   = profile.chess_source || 'chess.com';
     setUsername(savedUsername);
     setSource(savedSource);
 
-    // Avoid overriding a step the user is already in (e.g., questionnaire)
-    if (step === 'app' || step === 'import' || step === 'questionnaire') return;
+    if (path.startsWith('/app') || path === '/import' || path === '/questionnaire') return;
 
-    // Fast restore from localStorage cache
     const cachedProfile = localStorage.getItem('playerProfile');
     if (cachedProfile) {
       try {
         setPlayerProfile(JSON.parse(cachedProfile));
-        setStep('app');
+        navigate('/app/welcome');
       } catch {}
     }
 
-    // Refresh from backend in background
     axios.get(`${API_BASE}/cached-profile`, { params: { username: savedUsername } })
       .then(res => {
         setPlayerProfile(res.data);
         localStorage.setItem('playerProfile', JSON.stringify(res.data));
-        setStep('app');
+        if (!path.startsWith('/app')) navigate('/app/welcome');
       })
       .catch(() => {
-        // No backend cache → go to import so user can fetch their games
-        if (step !== 'app') setStep('import');
+        if (!path.startsWith('/app')) navigate('/import');
       });
   }, [user, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -108,14 +123,14 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [loading]);
 
-  /* ── Login success — called by LoginPage after chess username is set ── */
+  /* ── Login success ── */
   const handleLoginSuccess = (chessUsername, chessSource) => {
     setUsername(chessUsername);
     setSource(chessSource || 'chess.com');
-    setStep('import');
+    navigate('/import');
   };
 
-  /* ── Refresh data handler ── */
+  /* ── Refresh data ── */
   const handleRefreshData = async () => {
     if (!username) return;
     setLoading(true);
@@ -132,7 +147,7 @@ function AppInner() {
     }
   };
 
-  /* ── Import handler ── */
+  /* ── Import games ── */
   const handleGameImport = async (importedSource, importedUsername) => {
     setLoading(true);
     setLoadingMessage(`Fetching games for ${importedUsername}… this can take a minute.`);
@@ -146,7 +161,7 @@ function AppInner() {
       });
       setPlayerProfile(res.data);
       localStorage.setItem('playerProfile', JSON.stringify(res.data));
-      setStep('app');
+      navigate('/app/welcome');
     } catch (err) {
       setError(extractError(err, 'Error importing games'));
     } finally {
@@ -154,7 +169,7 @@ function AppInner() {
     }
   };
 
-  /* ── Profile accepted → generate questionnaire ── */
+  /* ── Profile accepted → questionnaire ── */
   const handleProfileAccepted = async () => {
     setLoading(true);
     setLoadingMessage('Building your personalized questionnaire…');
@@ -162,7 +177,7 @@ function AppInner() {
     try {
       const res = await axios.post(`${API_BASE}/generate-questionnaire`, { source, username });
       setQuestionnaireData(res.data);
-      setStep('questionnaire');
+      navigate('/questionnaire');
     } catch (err) {
       setError(extractError(err, 'Error generating questionnaire'));
     } finally {
@@ -186,8 +201,8 @@ function AppInner() {
       const payload = { username: questionnaire_response.username, preferences, color: questionnaire_response.color };
       await axios.post(`${API_BASE}/submit-preferences`, payload);
       setRepertoireData({ preferences, color: payload.color });
-      setActiveMode('coach');
-      setStep('app');
+      setMountedModes(prev => { const next = new Set(prev); next.add('coach'); return next; });
+      navigate('/app/coach');
     } catch (err) {
       setError(extractError(err, 'Error saving preferences'));
     } finally {
@@ -197,8 +212,8 @@ function AppInner() {
 
   /* ── Mode selection ── */
   const handleModeSelect = (mode) => {
-    setActiveMode(mode);
     setMountedModes(prev => { const next = new Set(prev); next.add(mode); return next; });
+    navigate(`/app/${mode}`);
   };
 
   /* ── Sign out ── */
@@ -209,17 +224,16 @@ function AppInner() {
     setQuestionnaireData(null);
     setRepertoireData(null);
     setError(null);
-    setActiveMode('welcome');
-    await signOut(); // Supabase clears session → auth effect above sets step to 'login'
+    await signOut(); // auth effect above will navigate to /login
   };
 
-  /* ── Called from AccountSettings when chess username changes ── */
+  /* ── Chess username changed in account settings ── */
   const handleChessUsernameChanged = (newUsername, newSource) => {
     setUsername(newUsername);
     setSource(newSource);
     setPlayerProfile(null);
     localStorage.removeItem('playerProfile');
-    setStep('import');
+    navigate('/import');
   };
 
   /* ── Loading overlay ── */
@@ -236,7 +250,7 @@ function AppInner() {
     </div>
   );
 
-  /* ── Auth still loading — show blank ── */
+  /* ── Auth still loading ── */
   if (user === undefined) {
     return (
       <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -257,7 +271,7 @@ function AppInner() {
       )}
 
       {step === 'landing' && (
-        <LandingPage onStart={() => setStep('login')} />
+        <LandingPage onStart={() => navigate('/login')} />
       )}
 
       {step === 'login' && (
@@ -267,7 +281,7 @@ function AppInner() {
       {step === 'import' && (
         <div className="app-page-wrap">
           <div className="app-page-header">
-            <div className="app-page-logo" onClick={() => setStep('login')}>
+            <div className="app-page-logo" onClick={() => navigate('/login')}>
               <Logo size={30} />
               <span>MyChess<strong>2nd</strong></span>
             </div>
@@ -283,7 +297,7 @@ function AppInner() {
       {step === 'questionnaire' && questionnaireData && (
         <div className="app-page-wrap">
           <div className="app-page-header">
-            <div className="app-page-logo" onClick={() => setStep('login')}>
+            <div className="app-page-logo" onClick={() => navigate('/login')}>
               <Logo size={30} />
               <span>MyChess<strong>2nd</strong></span>
             </div>
