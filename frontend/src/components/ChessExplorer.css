@@ -365,23 +365,23 @@
   .ce-root { padding: 18px; }
   .ce-layout { flex-direction: column; }
 
-  /* Board takes remaining width; eval bar is thin vertical strip */
+  /* Board fills remaining width; eval-wrap stretches to board height via align-items:stretch */
   .ce-board-wrap { flex: 1; width: auto; }
+  .ce-eval-wrap  { align-self: stretch; }
 
+  /* height:100% fills the stretched eval-wrap, which equals the board height exactly */
   .ce-eval-bar-outer {
     width: 12px;
-    /* Height matches board: screen - 2×18px padding - 12px bar - 10px gap */
-    height: calc(100vw - 58px);
+    height: 100%;
     border-radius: 4px;
   }
 
-  /* Score badge below bar is redundant — eval shown in panel header */
+  /* Score badge redundant on mobile — eval visible in panel header */
   .ce-eval-score-badge { display: none; }
 }
 
 @media (max-width: 480px) {
   .ce-root { padding: 12px; }
-  .ce-eval-bar-outer { height: calc(100vw - 50px); }
 }
 
 @media (max-width: 480px) {
