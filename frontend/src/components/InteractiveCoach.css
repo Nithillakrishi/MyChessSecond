@@ -624,7 +624,7 @@
   .right-column { border-left: none; border-top: 1px solid var(--border); }
   .board-section { order: -1; }
   .mentor-panel { border-right: none; border-bottom: 1px solid var(--border); }
-  .eval-wrap { height: min(400px, calc(100vw - 60px)); }
+  .eval-wrap { height: min(400px, calc(100vw - 90px)); }
 }
 
 @media (max-width: 600px) {

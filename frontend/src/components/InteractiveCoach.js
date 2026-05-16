@@ -401,7 +401,7 @@ export default function InteractiveCoach({ username, preferences, color, onReset
             onPieceDrop={onPieceDrop}
             onSquareClick={handleSquareClick}
             boardOrientation={color || 'white'}
-            boardWidth={window.innerWidth <= 900 ? Math.min(400, window.innerWidth - 60) : 400}
+            boardWidth={window.innerWidth <= 900 ? Math.min(400, window.innerWidth - 90) : 400}
             customSquareStyles={customSquareStyles}
             customDarkSquareStyle={{ backgroundColor: boardDark }}
             customLightSquareStyle={{ backgroundColor: boardLight }}
