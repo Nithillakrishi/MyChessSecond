@@ -361,57 +361,27 @@
   font-style: italic;
 }
 
-/* Horizontal eval bar — mobile only, hidden on desktop */
-.ce-eval-horiz { display: none; }
-
 @media (max-width: 820px) {
   .ce-root { padding: 18px; }
   .ce-layout { flex-direction: column; }
-  .ce-board-wrap { width: 100%; }
-  .ce-eval-bar-outer { display: none; }
 
-  /* Horizontal eval bar */
-  .ce-eval-horiz {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    margin-bottom: 6px;
+  /* Board takes remaining width; eval bar is thin vertical strip */
+  .ce-board-wrap { flex: 1; width: auto; }
+
+  .ce-eval-bar-outer {
+    width: 12px;
+    /* Height matches board: screen - 2×18px padding - 12px bar - 10px gap */
+    height: calc(100vw - 58px);
+    border-radius: 4px;
   }
 
-  .ce-eval-horiz-track {
-    flex: 1;
-    height: 10px;
-    background: #1a1a1a;
-    border-radius: 5px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-  }
-
-  .ce-eval-horiz-fill {
-    height: 100%;
-    background: #efefef;
-    border-radius: 5px;
-    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .ce-eval-horiz-score {
-    font-size: 12px;
-    font-weight: 900;
-    color: var(--cream);
-    background: var(--bg-3);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 2px 7px;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-    min-width: 44px;
-    text-align: center;
-  }
+  /* Score badge below bar is redundant — eval shown in panel header */
+  .ce-eval-score-badge { display: none; }
 }
 
 @media (max-width: 480px) {
   .ce-root { padding: 12px; }
+  .ce-eval-bar-outer { height: calc(100vw - 50px); }
 }
 
 @media (max-width: 480px) {
