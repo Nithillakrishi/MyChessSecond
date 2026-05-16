@@ -396,17 +396,19 @@ export default function InteractiveCoach({ username, preferences, color, onReset
             </div>
           </div>
 
-          <Chessboard customPieces={CHESS_PIECES}
-            position={game.fen()}
-            onPieceDrop={onPieceDrop}
-            onSquareClick={handleSquareClick}
-            boardOrientation={color || 'white'}
-            boardWidth={window.innerWidth <= 900 ? Math.min(400, window.innerWidth - 90) : 400}
-            customSquareStyles={customSquareStyles}
-            customDarkSquareStyle={{ backgroundColor: boardDark }}
-            customLightSquareStyle={{ backgroundColor: boardLight }}
-            animationDuration={150}
-          />
+          <div className="ic-board-wrap">
+            <Chessboard customPieces={CHESS_PIECES}
+              position={game.fen()}
+              onPieceDrop={onPieceDrop}
+              onSquareClick={handleSquareClick}
+              boardOrientation={color || 'white'}
+              boardWidth={window.innerWidth <= 900 ? undefined : 400}
+              customSquareStyles={customSquareStyles}
+              customDarkSquareStyle={{ backgroundColor: boardDark }}
+              customLightSquareStyle={{ backgroundColor: boardLight }}
+              animationDuration={150}
+            />
+          </div>
         </div>
 
         <OpeningBadge opening={detectOpeningByMoves(sanHistory)} />

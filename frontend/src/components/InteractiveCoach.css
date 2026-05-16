@@ -288,6 +288,8 @@
   align-items: center;
 }
 
+.ic-board-wrap { width: 400px; flex-shrink: 0; }
+
 /* Vertical eval bar */
 .eval-wrap {
   display: flex;
@@ -624,7 +626,13 @@
   .right-column { border-left: none; border-top: 1px solid var(--border); }
   .board-section { order: -1; }
   .mentor-panel { border-right: none; border-bottom: 1px solid var(--border); }
-  .eval-wrap { height: min(400px, calc(100vw - 90px)); }
+
+  /* Same approach as Chess Explorer: flex:1 board, stretch eval bar to match height */
+  .board-with-eval { align-items: stretch; }
+  .ic-board-wrap   { flex: 1; }
+  .eval-wrap       { height: auto; align-self: stretch; }
+  .eval-bar        { width: 12px; border-radius: 4px; }
+  .eval-num        { display: none; }
 }
 
 @media (max-width: 600px) {
