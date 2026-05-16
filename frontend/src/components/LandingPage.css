@@ -1222,7 +1222,7 @@
   .lp-board { --sq: 38px; }
   .lp-eval-bar { height: 304px; }
   .lp-footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
-  .lp-hero-title { font-size: clamp(44px, 12vw, 88px); }
+  .lp-hero-title { font-size: clamp(28px, 7vw, 44px); }
   .lp-problem { padding-top: 80px; padding-bottom: 80px; }
   .lp-how, .lp-features, .lp-demo, .lp-testimonials { padding-top: 80px; padding-bottom: 80px; }
   .lp-cta-section { padding-top: 100px; padding-bottom: 100px; }
@@ -1237,11 +1237,15 @@
   .lp-nav-links { display: none; }
   .lp-nav-brand { font-size: 14px; gap: 8px; }
   .lp-nav-cta { padding: 9px 14px; font-size: 10px; }
+  /* Hide theme picker in landing nav on mobile — keeps nav from overflowing */
+  .lp-nav-right .tp-root { display: none; }
 
   /* Hero */
   .lp-hero { padding: 36px 16px 40px; }
   .lp-hero-grid { grid-template-columns: 1fr; gap: 32px; min-height: unset; }
-  .lp-hero-title { font-size: clamp(36px, 11vw, 56px); line-height: 0.95; }
+  .lp-hero-title { font-size: clamp(22px, 6.5vw, 32px); line-height: 1.05; }
+  .lp-hero-tag { font-size: 9px; letter-spacing: 0.1em; }
+  .lp-hero-tag .lp-dot { width: 6px; height: 6px; }
   .lp-hero-sub { font-size: 15px; }
   .lp-hero-actions { flex-direction: column; gap: 10px; }
   .lp-btn-primary, .lp-btn-ghost { width: 100%; justify-content: center; padding: 16px 20px; }
