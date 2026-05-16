@@ -49,10 +49,10 @@ const WHITE_PIECES = '♙♘♗♖♕♔';
 function HeroBoard() {
   // Highlighted squares: e4 (white played), c5 (black response).
   const highlight = new Set(['e4', 'c5']);
-  // Best-move arrow we suggest visually: g1 → f3 (white's main continuation).
+  // sq only used for SVG viewBox coordinate space — actual size controlled by CSS --sq
   const sq = 56;
   return (
-    <div className="lp-board" style={{ '--sq': `${sq}px` }}>
+    <div className="lp-board">
       {Array.from({ length: 64 }).map((_, i) => {
         const x = i % 8;
         const y = Math.floor(i / 8);
