@@ -463,7 +463,10 @@ export default function CustomPosition() {
   const evalVal = evalLabel(sfInfo, isWhiteTurn);
   const bestSan = uciToSan(activeFen, sfInfo.bestMove);
   const isMobile = window.innerWidth <= 800;
-  const boardSize = Math.min(500, Math.max(300, window.innerWidth - 420));
+  // mobile: 16px padding×2 + 12px eval bar + 8px gap = 52px
+  const boardSize = isMobile
+    ? window.innerWidth - 52
+    : Math.min(500, Math.max(300, window.innerWidth - 420));
 
   // Last move highlight
   const activeSel = mode === 'pgn' ? pgnSel : selectedSquare;
@@ -571,7 +574,7 @@ export default function CustomPosition() {
                 onPieceDrop={mode === 'pgn' ? onDropPgn : onDrop}
                 onSquareClick={mode === 'pgn' ? onSquareClickPgn : onSquareClick}
                 boardOrientation={boardFlipped ? 'black' : 'white'}
-                boardWidth={isMobile ? undefined : boardSize}
+                boardWidth={boardSize}
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
                 customDarkSquareStyle={{ backgroundColor: boardDark }}
                 customLightSquareStyle={{ backgroundColor: boardLight }}
