@@ -274,6 +274,9 @@ export default function ChessExplorer() {
                 onPieceDrop={onDrop}
                 onSquareClick={onSquareClick}
                 boardOrientation={flipped ? 'black' : 'white'}
+                boardWidth={window.innerWidth <= 820
+                  ? window.innerWidth - 58
+                  : Math.min(640, Math.max(300, window.innerHeight - 220))}
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
                 customDarkSquareStyle={{ backgroundColor: boardDark }}
                 customLightSquareStyle={{ backgroundColor: boardLight }}
