@@ -499,6 +499,8 @@
   .tvp-root { padding: 18px; }
   .tvp-game-layout { flex-direction: column; }
   .tvp-board-col { flex-direction: column; }
+  .tvp-eval-bar-outer { width: 12px; border-radius: 4px; }
+  .tvp-eval-score { display: none; }
 }
 
 @media (max-width: 500px) {

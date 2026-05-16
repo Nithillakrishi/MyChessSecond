@@ -504,7 +504,7 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
 
   /* ── Explorer phase ── */
   const boardSize = window.innerWidth <= 760
-    ? Math.min(500, window.innerWidth - 36)   // mobile: full width minus padding
+    ? Math.min(500, window.innerWidth - 56)   // mobile: padding(36) + eval bar(12) + gap(8)
     : Math.min(500, window.innerWidth - 340); // desktop: leave room for side panel
   const opening = detectOpening(fenHistory) || detectOpeningByMoves(sanHistory);
 
