@@ -8,7 +8,7 @@ import { detectOpening, detectOpeningByMoves } from '../utils/openingDetector';
 import './TrainVsPlayer.css';
 import { CHESS_PIECES } from './boardPieces';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 const SOURCES = [
   { id: 'chess.com', label: 'Chess.com' },
   { id: 'lichess',   label: 'Lichess'   },

@@ -6,7 +6,7 @@ import { CHESS_PIECES } from './boardPieces';
 import openingsData from '../data/openings.json';
 import './OpeningCoach.css';
 
-const API = 'http://localhost:8000';
+const API = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 /* ── helpers ─────────────────────────────────────────────── */

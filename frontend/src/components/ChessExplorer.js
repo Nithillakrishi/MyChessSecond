@@ -8,7 +8,7 @@ import { detectOpeningByMoves } from '../utils/openingDetector';
 import './ChessExplorer.css';
 import { CHESS_PIECES } from './boardPieces';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
 function useEval() {
   const engRef      = useRef(null);

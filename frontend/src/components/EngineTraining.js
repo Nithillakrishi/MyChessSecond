@@ -146,7 +146,7 @@ function PVLine({ line, fen, lineNum, isWhiteTurn }) {
   );
 }
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
 export default function EngineTraining({ username = '' }) {
   const { dark: boardDark, light: boardLight } = useBoardColors();

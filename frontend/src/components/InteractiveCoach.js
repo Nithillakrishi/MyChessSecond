@@ -8,7 +8,7 @@ import { detectOpeningByMoves } from '../utils/openingDetector';
 import './InteractiveCoach.css';
 import { CHESS_PIECES } from './boardPieces';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
 const STYLE_LABELS = {
   Fianchetto: 'Fianchetto',
