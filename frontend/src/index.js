@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 
 // Suppress Stockfish WebAssembly RuntimeErrors in the capture phase so
@@ -29,5 +30,6 @@ root.render(
     <ThemeProvider>
       <App />
     </ThemeProvider>
+    <Analytics />
   </React.StrictMode>
 );
