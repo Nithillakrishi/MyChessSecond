@@ -339,13 +339,68 @@
   background: transparent;
 }
 
+/* ── Mobile bottom nav (hidden on desktop) ── */
+.al-mobile-nav { display: none; }
+
 /* ── Responsive ── */
-@media (max-width: 600px) {
-  .al-sidebar { width: 56px; min-width: 56px; }
-  .al-brand-name,
-  .al-nav-label { display: none; }
-  .al-brand { justify-content: center; }
-  .al-nav-item { justify-content: center; padding: 11px 0; }
-  .al-collapse-btn { display: none; }
-  .al-nav { padding: 10px 6px; }
+@media (max-width: 768px) {
+  /* Hide sidebar entirely on mobile */
+  .al-sidebar { display: none; }
+
+  /* Main takes full width, leaves room for bottom nav */
+  .al-main { padding-bottom: 64px; }
+
+  /* Bottom nav bar */
+  .al-mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: var(--sidebar-bg);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 100;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .al-mobile-nav::-webkit-scrollbar { display: none; }
+
+  .al-mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    min-width: 64px;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.14s;
+  }
+
+  .al-mobile-nav-item:active { opacity: 0.7; }
+
+  .al-mobile-nav-active {
+    color: var(--green) !important;
+  }
+
+  .al-mobile-nav-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .al-mobile-nav-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
 }

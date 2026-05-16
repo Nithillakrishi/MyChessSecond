@@ -113,6 +113,20 @@ export default function AppLayout({ activeMode, onSelect, username, onLogout, on
         {children}
       </main>
 
+      {/* Mobile bottom nav */}
+      <nav className="al-mobile-nav">
+        {NAV_ITEMS.map(item => (
+          <button
+            key={item.id}
+            className={`al-mobile-nav-item ${activeMode === item.id ? 'al-mobile-nav-active' : ''}`}
+            onClick={() => onSelect(item.id)}
+          >
+            <span className="al-mobile-nav-icon">{item.icon}</span>
+            <span className="al-mobile-nav-label">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
       {/* Account settings modal */}
       {showSettings && (
         <AccountSettings
