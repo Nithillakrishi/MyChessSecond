@@ -498,11 +498,9 @@
 @media (max-width: 760px) {
   .tvp-root { padding: 18px; }
   .tvp-game-layout { flex-direction: column; }
-  .tvp-board-col { flex-direction: row; }
+  .tvp-board-col { flex-direction: column; }
 }
 
 @media (max-width: 500px) {
   .tvp-root { padding: 12px; }
-  .tvp-board-col { flex-direction: column; align-items: center; }
-  .tvp-board-col > .tvp-eval-bar-outer { display: none; }
 }

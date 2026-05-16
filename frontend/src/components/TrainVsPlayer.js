@@ -503,7 +503,9 @@ export default function TrainVsPlayer({ username: myUsername, source: mySource }
   }
 
   /* ── Explorer phase ── */
-  const boardSize = Math.min(500, window.innerWidth - 340);
+  const boardSize = window.innerWidth <= 760
+    ? Math.min(500, window.innerWidth - 36)   // mobile: full width minus padding
+    : Math.min(500, window.innerWidth - 340); // desktop: leave room for side panel
   const opening = detectOpening(fenHistory) || detectOpeningByMoves(sanHistory);
 
   return (
