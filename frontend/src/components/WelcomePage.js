@@ -163,6 +163,43 @@ export default function WelcomePage({ username, profile, onSelect, onRefresh }) 
             <div className="wp-chart-card">
               <div className="wp-chart-title">Overall Results</div>
               <WDLDonut wins={wins} draws={draws} losses={losses} />
+              <div className="wp-wdl-breakdown">
+                {[
+                  { label: 'Wins',   count: wins,   color: WIN_COLOR  },
+                  { label: 'Draws',  count: draws,  color: DRAW_COLOR },
+                  { label: 'Losses', count: losses, color: LOSS_COLOR },
+                ].map(({ label, count, color }) => {
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                  return (
+                    <div key={label} className="wp-wdl-row">
+                      <span className="wp-wdl-label">{label}</span>
+                      <div className="wp-wdl-track">
+                        <div className="wp-wdl-fill" style={{ width: `${pct}%`, background: color }} />
+                      </div>
+                      <span className="wp-wdl-pct" style={{ color }}>{pct}%</span>
+                      <span className="wp-wdl-num">{count.toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {(profile?.total_games_as_white > 0 || profile?.total_games_as_black > 0) && (
+                <div className="wp-wdl-split">
+                  <div className="wp-wdl-split-item">
+                    <span className="wp-wdl-split-n">{profile.total_games_as_white ?? 0}</span>
+                    <span className="wp-wdl-split-l">as White</span>
+                  </div>
+                  <div className="wp-wdl-split-div" />
+                  <div className="wp-wdl-split-item">
+                    <span className="wp-wdl-split-n">{profile.total_games_as_black ?? 0}</span>
+                    <span className="wp-wdl-split-l">as Black</span>
+                  </div>
+                  <div className="wp-wdl-split-div" />
+                  <div className="wp-wdl-split-item">
+                    <span className="wp-wdl-split-n">{total.toLocaleString()}</span>
+                    <span className="wp-wdl-split-l">total</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {tcBarData.length > 0 && (
