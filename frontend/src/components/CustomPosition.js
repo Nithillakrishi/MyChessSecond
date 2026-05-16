@@ -462,6 +462,7 @@ export default function CustomPosition() {
   const isWhiteTurn = activeGame.turn() === 'w';
   const evalVal = evalLabel(sfInfo, isWhiteTurn);
   const bestSan = uciToSan(activeFen, sfInfo.bestMove);
+  const isMobile = window.innerWidth <= 800;
   const boardSize = Math.min(500, Math.max(300, window.innerWidth - 420));
 
   // Last move highlight
@@ -557,20 +558,20 @@ export default function CustomPosition() {
           {/* Eval bar + board side by side */}
           <div className="cp-board-row">
             <div className="cp-eval-bar-wrap">
-              <div className="cp-eval-bar-outer" style={{ height: boardSize }}>
+              <div className="cp-eval-bar-outer" style={isMobile ? undefined : { height: boardSize }}>
                 <div className="cp-eval-bar-black" style={{ height: `${Math.min(90, Math.max(10, 50 - (isWhiteTurn ? sfInfo.score : -sfInfo.score) * 4))}%` }} />
                 <div className="cp-eval-bar-white" style={{ height: `${Math.min(90, Math.max(10, 50 + (isWhiteTurn ? sfInfo.score : -sfInfo.score) * 4))}%` }} />
               </div>
-              <div className="cp-eval-score-badge">{sfInfo.ready ? evalVal : '—'}</div>
+              {!isMobile && <div className="cp-eval-score-badge">{sfInfo.ready ? evalVal : '—'}</div>}
             </div>
-            <div className="cp-board-wrap" style={{ width: boardSize }}>
+            <div className="cp-board-wrap" style={isMobile ? undefined : { width: boardSize }}>
               <Chessboard
                 customPieces={CHESS_PIECES}
                 position={activeFen}
                 onPieceDrop={mode === 'pgn' ? onDropPgn : onDrop}
                 onSquareClick={mode === 'pgn' ? onSquareClickPgn : onSquareClick}
                 boardOrientation={boardFlipped ? 'black' : 'white'}
-                boardWidth={boardSize}
+                boardWidth={isMobile ? undefined : boardSize}
                 customBoardStyle={{ borderRadius: '10px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}
                 customDarkSquareStyle={{ backgroundColor: boardDark }}
                 customLightSquareStyle={{ backgroundColor: boardLight }}

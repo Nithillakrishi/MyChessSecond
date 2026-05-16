@@ -570,6 +570,10 @@
 @media (max-width: 800px) {
   .cp-root { padding: 16px; }
   .cp-layout { flex-direction: column; }
-  .cp-board-wrap { width: 100% !important; }
-  .cp-eval-bar-outer { display: none; }
+  .cp-board-col { flex: 1; width: 100%; }
+  .cp-board-row { align-items: stretch; }
+  .cp-board-wrap { flex: 1; width: auto !important; }
+  .cp-eval-bar-wrap { align-self: stretch; }
+  .cp-eval-bar-outer { display: flex; width: 12px; height: 100%; border-radius: 4px; }
+  .cp-eval-score-badge { display: none; }
 }
