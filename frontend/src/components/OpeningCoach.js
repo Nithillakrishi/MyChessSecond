@@ -179,6 +179,7 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
   const [topMoves, setTopMoves]     = useState([]);
   const [analysisFen, setAnalysisFen] = useState(null); // FEN that topMoves belongs to
   const [chatOpen, setChatOpen]   = useState(true);
+  const [isMobile, setIsMobile]   = useState(() => window.innerWidth <= 600);
   const [preloaded, setPreloaded] = useState(null);
   const explainedNodesRef = useRef(new Set());
   const playerProfileRef  = useRef(playerProfile);
@@ -199,6 +200,11 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
   useEffect(() => { isStreamingRef.current = isStreaming;    }, [isStreaming]);
   useEffect(() => { chatHistoryRef.current = chatHistory;    }, [chatHistory]);
   useEffect(() => { playerProfileRef.current = playerProfile; }, [playerProfile]);
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth <= 600);
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   /* ── Stockfish ─────────────────────────────────────────── */
   useEffect(() => {
@@ -786,7 +792,7 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
           <div className="oc-empty-sub">Type a name above — e.g. "sicilian", "ruy lopez", "king's indian"</div>
         </div>
       ) : (
-        <div className="oc-body" style={{ gridTemplateColumns: chatOpen ? '430px 1fr' : '1fr 44px' }}>
+        <div className="oc-body" style={{ gridTemplateColumns: isMobile ? '1fr' : (chatOpen ? '430px 1fr' : '1fr 44px') }}>
           {/* LEFT */}
           <div className="oc-left">
             <div className="oc-opening-badge">
@@ -808,7 +814,7 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
                   customLightSquareStyle={{ backgroundColor: boardColors.light }}
                   customArrows={[...stockfishArrows, ...(theoryArrow ? [theoryArrow] : [])]}
 
-                  boardWidth={chatOpen ? 360 : 460}
+                  boardWidth={isMobile ? Math.min(window.innerWidth - 68, 310) : (chatOpen ? 360 : 460)}
                 />
               </div>
             </div>

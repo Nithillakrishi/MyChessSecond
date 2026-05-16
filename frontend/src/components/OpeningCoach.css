@@ -1006,7 +1006,46 @@
 
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 900px) {
-  .oc-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .oc-left { border-right: none; border-bottom: 1px solid var(--border); max-height: 420px; }
+  .oc-body { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .oc-left { border-right: none; border-bottom: 1px solid var(--border); }
   .oc-board-wrap { align-self: center; }
+}
+
+@media (max-width: 600px) {
+  .oc-root {
+    height: auto;
+    min-height: 100svh;
+    overflow-y: auto;
+    padding-bottom: 72px;
+  }
+
+  .oc-header { padding: 12px 14px 0; }
+
+  .oc-title-main { font-size: 15px; }
+  .oc-title-sub  { font-size: 10px; }
+
+  .oc-session-btns { gap: 6px; }
+  .oc-btn-primary  { padding: 6px 12px; font-size: 11px; }
+  .oc-btn-ghost    { padding: 6px 10px; font-size: 11px; }
+  .oc-session-id   { display: none; }
+
+  .oc-body { overflow: visible; }
+
+  .oc-left { max-height: none; overflow-y: visible; }
+
+  .oc-board-row { justify-content: center; }
+
+  .oc-right {
+    overflow: visible;
+    min-height: 55vh;
+    border-top: 1px solid var(--border);
+  }
+
+  .oc-chat-messages {
+    min-height: 180px;
+    max-height: 45vh;
+  }
+
+  .oc-sessions-strip { padding: 10px 14px; }
+  .oc-strip-card { min-width: 160px; }
 }
