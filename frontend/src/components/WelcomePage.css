@@ -469,4 +469,19 @@
   .wp-stat-card { min-width: 48%; border-right: 1px solid var(--border); }
   .wp-charts-row { flex-direction: column; }
   .wp-tc-row { grid-template-columns: 18px 60px 60px 1fr 60px 30px; }
+
+  /* Opening rows: name full-width on top, stats on second line */
+  .wp-tc-row:has(.wp-opening-name) {
+    grid-template-columns: 1fr auto auto auto;
+    grid-template-rows: auto auto;
+    row-gap: 6px;
+    padding: 10px 8px;
+  }
+  .wp-tc-row:has(.wp-opening-name) .wp-opening-name {
+    grid-column: 1 / -1;
+    white-space: normal;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .wp-tc-row:has(.wp-opening-name) .wp-tc-bar-outer { display: none; }
 }
