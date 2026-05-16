@@ -389,3 +389,7 @@
   .et-board-wrap { width: 100%; }
   .et-eval-bar-outer { display: none; }
 }
+
+@media (max-width: 500px) {
+  .et-root { padding: 12px; }
+}

@@ -367,3 +367,7 @@
   .ce-board-wrap { width: 100%; }
   .ce-eval-bar-outer { display: none; }
 }
+
+@media (max-width: 480px) {
+  .ce-root { padding: 12px; }
+}

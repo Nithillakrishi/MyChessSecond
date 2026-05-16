@@ -705,3 +705,8 @@
   .pvs-game-layout { flex-direction: column; }
   .pvs-board-wrap { width: 100%; }
 }
+
+@media (max-width: 480px) {
+  .pvs-root { padding: 12px; }
+  .pvs-setup { padding-top: 12px; }
+}

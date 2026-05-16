@@ -500,3 +500,9 @@
   .tvp-game-layout { flex-direction: column; }
   .tvp-board-col { flex-direction: row; }
 }
+
+@media (max-width: 500px) {
+  .tvp-root { padding: 12px; }
+  .tvp-board-col { flex-direction: column; align-items: center; }
+  .tvp-board-col > .tvp-eval-bar-outer { display: none; }
+}

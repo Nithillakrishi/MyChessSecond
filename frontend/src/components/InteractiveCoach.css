@@ -625,3 +625,9 @@
   .board-section { order: -1; }
   .mentor-panel { border-right: none; border-bottom: 1px solid var(--border); }
 }
+
+@media (max-width: 600px) {
+  .coach-outer { padding: 12px; }
+  .coach-root { border-radius: 10px; }
+  .panel { padding: 0.9rem 1rem; }
+}

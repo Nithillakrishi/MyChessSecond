@@ -174,7 +174,7 @@ function LiveDemo() {
             </h2>
           </div>
           <p className="lp-section-title-sub">
-            We profile your last 4,000 games in under a minute. No signup, no card, no setup.
+            We profile your recent games in under a minute. Sign in with Google, enter your username — done.
           </p>
         </div>
 
@@ -252,7 +252,7 @@ export default function LandingPage({ onStart }) {
     { icon: '♘', title: 'Opening Explorer',     desc: 'Global statistics powered by ChessDB — engine evals and win rates for every legal move.',                       tag: 'GLOBAL' },
     { icon: '♖', title: 'Engine Training',      desc: 'Stockfish 18 in the browser. Eval bar, best move, and search depth on every position.',                          tag: 'LIVE' },
     { icon: '♚', title: 'vs Player Database',   desc: 'Enter any username. See their opening tendencies — and practice against their favourite moves.',                  tag: 'SCOUT' },
-    { icon: '♕', title: 'Game Analysis',         desc: 'Import any PGN, navigate moves, branch into variations, and get Stockfish analysis at every position.',        tag: 'STUDIO' },
+    { icon: '♕', title: 'Game Analysis',         desc: 'Paste a PGN or load any FEN. Navigate every move with live ChessDB stats and Stockfish engine analysis.',     tag: 'STUDIO' },
     { icon: '♔', title: 'Play vs Stockfish',    desc: 'Full game against the engine across five difficulty levels — beginner to master strength.',                       tag: 'COMBAT' },
   ];
 
@@ -275,11 +275,10 @@ export default function LandingPage({ onStart }) {
   ];
 
   const stats = [
-    ['6',      'Training Modes'],
-    ['SF 18',  'Engine'],
-    ['ChessDB','Global Explorer'],
-    ['c.com + Lichess', 'Game Sources'],
-    ['100%',   'Free'],
+    ['6',         'Training Modes'],
+    ['SF 18',     'Engine'],
+    ['LLaMA 3.3', 'AI Coach'],
+    ['100%',      'Free'],
   ];
 
   const quotes = [
@@ -334,9 +333,9 @@ export default function LandingPage({ onStart }) {
               }}>See sample profile</button>
             </div>
             <div className="lp-hero-meta">
-              <span><strong>60s</strong> analysis</span>
-              <span><strong>0</strong> signup friction</span>
-              <span><strong>12,478</strong> players onboarded this week</span>
+              <span><strong>60s</strong> to profile</span>
+              <span><strong>Chess.com</strong> + Lichess</span>
+              <span><strong>Free</strong> · open-source</span>
             </div>
           </div>
 
@@ -359,12 +358,12 @@ export default function LandingPage({ onStart }) {
       <div className="lp-ticker">
         <div className="lp-ticker-row">
           {[
-            '♔ 4.2M GAMES ANALYZED', '♛ 142 OPENING SYSTEMS', '♞ DEPTH 24',
-            'NPS 1.2M', '♟ 84 CRITICAL POSITIONS', '+186 AVG ELO GAIN @ 6 MONTHS',
-            '♜ EXPORTABLE TO CHESSABLE · LICHESS · PDF',
-            '♔ 4.2M GAMES ANALYZED', '♛ 142 OPENING SYSTEMS', '♞ DEPTH 24',
-            'NPS 1.2M', '♟ 84 CRITICAL POSITIONS', '+186 AVG ELO GAIN @ 6 MONTHS',
-            '♜ EXPORTABLE TO CHESSABLE · LICHESS · PDF',
+            '♔ STOCKFISH 18 IN BROWSER', '♛ 142 OPENING SYSTEMS', '♞ DEPTH 24',
+            'NPS 1.2M', '♟ 84 CRITICAL POSITIONS', 'CHESS.COM + LICHESS IMPORT',
+            '♜ 6 TRAINING MODES', '♙ AI COACH · GROQ LLAMA 3.3 70B',
+            '♔ STOCKFISH 18 IN BROWSER', '♛ 142 OPENING SYSTEMS', '♞ DEPTH 24',
+            'NPS 1.2M', '♟ 84 CRITICAL POSITIONS', 'CHESS.COM + LICHESS IMPORT',
+            '♜ 6 TRAINING MODES', '♙ AI COACH · GROQ LLAMA 3.3 70B',
           ].map((t, i) => (
             <span key={i}><span className="dot">●</span>{t}</span>
           ))}
@@ -507,7 +506,7 @@ export default function LandingPage({ onStart }) {
           <input placeholder="chess.com or lichess username" />
           <button type="submit">Run →</button>
         </form>
-        <div className="lp-cta-note">Free for the first 500 games · no card · cancel with one command</div>
+        <div className="lp-cta-note">Free · open-source · just sign in with Google</div>
       </section>
 
       {/* ───── FOOTER ───── */}
@@ -523,20 +522,19 @@ export default function LandingPage({ onStart }) {
             </p>
           </div>
           {[
-            ['PRODUCT', ['Coach', 'Explorer', 'Engine', 'Play vs SF']],
-            ['LEARN',   ['Docs', 'Method', 'Changelog', 'API']],
-            ['COMPANY', ['About', 'Pricing', 'Contact']],
-            ['LEGAL',   ['Privacy', 'Terms', 'Status']],
+            ['MODES',   ['AI Coach', 'Chess Explorer', 'Engine Training', 'vs Player', 'Game Analysis', 'Play vs Stockfish']],
+            ['POWERED BY', ['Stockfish 18 WASM', 'ChessDB', 'Groq · LLaMA 3.3', 'Chess.com API', 'Lichess API']],
+            ['BUILT WITH', ['React 18', 'FastAPI', 'Supabase Auth', 'Vercel + Render']],
           ].map(([h, items]) => (
             <div key={h} className="lp-footer-col">
               <h4>{h}</h4>
-              {items.map((i) => <a key={i} href="#">{i}</a>)}
+              {items.map((i) => <span key={i}>{i}</span>)}
             </div>
           ))}
         </div>
         <div className="lp-footer-bottom">
           <span>© 2026 MYCHESS2ND · ALL RIGHTS RESERVED</span>
-          <span>BUILD a3f7c1 · STOCKFISH 17.0 · NPS 1.2M</span>
+          <span>STOCKFISH 18 · LLAMA 3.3 70B · OPEN SOURCE</span>
         </div>
       </footer>
     </div>
