@@ -125,6 +125,13 @@ export default function AppLayout({ activeMode, onSelect, username, onLogout, on
             <span className="al-mobile-nav-label">{item.label}</span>
           </button>
         ))}
+        <button className="al-mobile-nav-item al-mobile-nav-profile" onClick={() => setShowSettings(true)}>
+          {avatarUrl
+            ? <img src={avatarUrl} alt="" className="al-mobile-avatar-img" referrerPolicy="no-referrer" />
+            : <span className="al-mobile-avatar-fallback">{username ? username[0].toUpperCase() : '?'}</span>
+          }
+          <span className="al-mobile-nav-label">Account</span>
+        </button>
       </nav>
 
       {/* Account settings modal */}
