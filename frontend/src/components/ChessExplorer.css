@@ -361,33 +361,57 @@
   font-style: italic;
 }
 
+/* Horizontal eval bar — mobile only, hidden on desktop */
+.ce-eval-horiz { display: none; }
+
 @media (max-width: 820px) {
   .ce-root { padding: 18px; }
   .ce-layout { flex-direction: column; }
+  .ce-board-wrap { width: 100%; }
+  .ce-eval-bar-outer { display: none; }
 
-  /* Board takes remaining space after eval bar */
-  .ce-board-wrap { flex: 1; width: auto; }
-
-  /* Show a narrower vertical eval bar — let flex stretch match board height */
-  .ce-eval-bar-outer {
+  /* Horizontal eval bar */
+  .ce-eval-horiz {
     display: flex;
-    width: 16px;
-    height: auto;
-    border-radius: 4px;
-    min-height: 60px;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 6px;
   }
 
-  .ce-eval-score-badge {
-    font-size: 10px;
-    padding: 2px 4px;
-    letter-spacing: 0;
+  .ce-eval-horiz-track {
+    flex: 1;
+    height: 10px;
+    background: #1a1a1a;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--border);
   }
 
-  /* Eval badge in panel header — slightly larger for readability */
-  .ce-eval-badge {
-    font-size: 15px;
-    padding: 4px 12px;
+  .ce-eval-horiz-fill {
+    height: 100%;
+    background: #efefef;
+    border-radius: 5px;
+    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
+
+  .ce-eval-horiz-score {
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--cream);
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    min-width: 44px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .ce-root { padding: 12px; }
 }
 
 @media (max-width: 480px) {

@@ -247,6 +247,16 @@ export default function ChessExplorer() {
       <div className="ce-layout">
         {/* Board column */}
         <div className="ce-board-col">
+          {/* Horizontal eval bar — mobile only */}
+          <div className="ce-eval-horiz">
+            <div className="ce-eval-horiz-track">
+              <div className="ce-eval-horiz-fill" style={{ width: `${whitePct}%` }} />
+            </div>
+            <div className="ce-eval-horiz-score">
+              {sfReady ? (displayScore >= 0 ? '+' : '') + displayScore.toFixed(2) : '—'}
+            </div>
+          </div>
+
           {/* Eval bar + board side by side */}
           <div className="ce-board-inner">
             <div className="ce-eval-wrap">
