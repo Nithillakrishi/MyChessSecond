@@ -140,7 +140,7 @@ function MoveLine({ startId, nodes, curId, onGoTo, isVar = false }) {
 }
 
 /* ── Main component ──────────────────────────────────────── */
-export default function OpeningCoach({ username, playerProfile, isActive = true }) {
+export default function OpeningCoach({ username, source, playerProfile, isActive = true }) {
   const boardColors  = useBoardColors();
   const arrowColors  = useArrowColors();
 
@@ -149,6 +149,18 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedOpening, setSelectedOpening] = useState(null);
   const searchRef = useRef(null);
+
+  const [activeTab, setActiveTab] = useState('openings');
+  const [insights, setInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState('');
+  const [openingsGroup, setOpeningsGroup] = useState('');
+
+  const getFamilyName = (name) => {
+    if (!name) return 'Other';
+    const base = name.split(':')[0].trim();
+    return base || 'Other';
+  };
 
   const [chess]          = useState(() => new Chess());
   const [fen, setFen]    = useState(chess.fen());
@@ -205,6 +217,50 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  const parseWinRate = (val) => {
+    if (val === undefined || val === null) return 0;
+    const num = parseFloat(String(val).replace('%', ''));
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const POSITION_TIPS = {
+    Fianchetto: 'Control the long diagonal and avoid weakening dark squares with early pawn pushes.',
+    CentralControl: 'Prioritize central pawn breaks and keep pieces active around the center.',
+    KingsideAttack: 'Keep pieces coordinated and delay pawn storms until development is complete.',
+    QueensideAttack: 'Use rook lifts and pawn levers; avoid loosening your king side.',
+    ClosedPositional: 'Improve piece placement, then prepare a pawn break on the correct wing.',
+    SharpTactical: 'Focus on king safety first; avoid forcing lines unless calculation is clear.',
+    LongMiddlegame: 'Trade only when it improves structure; keep flexibility and avoid pawn weaknesses.',
+    EndgameApproaching: 'Activate king early and centralize rooks before trading into pure endgames.',
+    Mixed: 'Finish development and target the weakest pawn or square.',
+    OpenGame: 'Use rapid development, open files for rooks, and watch tactical motifs on f7/f2.',
+    ClosedGame: 'Prepare pawn breaks and improve knights before opening lines.',
+    PassedPawn: 'Support the passer with pieces; do not push until the path is secured.',
+    WeakKing: 'Castle early and keep a compact pawn shield; avoid unnecessary pawn moves.',
+    RookEndgame: 'Activate rooks behind passers and keep the king centralized.',
+    OpenFiles: 'Contest open files with rooks and avoid back-rank weaknesses.',
+    IsolatedPawn: 'Use piece activity to compensate; avoid simplifying into a lost endgame.',
+    PawnBreakthrough: 'Prepare the break with piece support and reduce counterplay first.',
+  };
+
+  useEffect(() => {
+    if (activeTab === 'openings') return;
+    if (!username || !source) return;
+    if (insightsLoading || insights) return;
+
+    setInsightsLoading(true);
+    setInsightsError('');
+    fetch(`${API}/generate-questionnaire`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, username }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setInsights(data))
+      .catch(() => setInsightsError('Could not load insights yet. Import games and try again.'))
+      .finally(() => setInsightsLoading(false));
+  }, [activeTab, username, source, insightsLoading, insights]);
 
   /* ── Stockfish ─────────────────────────────────────────── */
   useEffect(() => {
@@ -699,6 +755,61 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
   const firstMainId  = treeNodes['root']?.childIds?.[0];
 
   /* ── Render ────────────────────────────────────────────── */
+  const positionTypeStats = insights?.position_types_with_stats || [];
+  const weakTypes = [...positionTypeStats]
+    .sort((a, b) => parseWinRate(a.win_rate) - parseWinRate(b.win_rate))
+    .slice(0, 4);
+  const strongTypes = [...positionTypeStats]
+    .sort((a, b) => parseWinRate(b.win_rate) - parseWinRate(a.win_rate))
+    .slice(0, 3);
+
+  const openingRows = [];
+  (playerProfile?.top_openings_white || []).forEach(o => openingRows.push({ ...o, side: 'White' }));
+  (playerProfile?.top_openings_black || []).forEach(o => openingRows.push({ ...o, side: 'Black' }));
+  const weakOpenings = openingRows
+    .filter(o => (o.games || 0) >= 3 && (o.win_rate || 0) <= 45)
+    .sort((a, b) => (a.win_rate || 0) - (b.win_rate || 0))
+    .slice(0, 5);
+
+  const openingsList = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return openingsData;
+    return openingsData.filter(o => o.name.toLowerCase().includes(q));
+  }, [query]);
+
+  const groupedOpenings = useMemo(() => {
+    const MOVE_LABELS = {
+      e4: '1.e4 (King pawn)',
+      d4: '1.d4 (Queen pawn)',
+      c4: '1.c4 (English)',
+      Nf3: '1.Nf3 (Reti)',
+      f4: '1.f4 (Bird)',
+      b3: '1.b3 (Nimzo-Larsen)',
+      g3: '1.g3 (King’s Fianchetto)',
+      Others: 'Other first moves',
+    };
+
+    const groups = {};
+    const getMoves = (o) => (o.moves || o.pgn || '').split(' ').filter(Boolean);
+
+    openingsList.forEach(o => {
+      const moves = getMoves(o);
+      const first = moves[0] || 'Others';
+      if (!groups[first]) groups[first] = {};
+      if (!groups[first].items) groups[first].items = [];
+      groups[first].items.push(o);
+    });
+
+    const firstKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+    return firstKeys.map(first => {
+      return {
+        key: first,
+        label: MOVE_LABELS[first] || `1.${first}`,
+        items: groups[first].items.sort((a, b) => a.name.localeCompare(b.name)),
+      };
+    });
+  }, [openingsList]);
+
   return (
     <div className="oc-root">
       {/* Header */}
@@ -740,6 +851,22 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
               ))}
             </ul>
           )}
+        </div>
+        <div className="oc-tabs">
+          {[
+            { id: 'openings', label: 'Openings' },
+            { id: 'middlegame', label: 'Middlegame Themes' },
+            { id: 'errors', label: 'Common Errors' },
+            { id: 'repertoire', label: 'Repertoire Fixes' },
+          ].map(t => (
+            <button
+              key={t.id}
+              className={`oc-tab${activeTab === t.id ? ' oc-tab-active' : ''}`}
+              onClick={() => setActiveTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -785,11 +912,152 @@ export default function OpeningCoach({ username, playerProfile, isActive = true 
         </div>
       )}
 
-      {!selectedOpening ? (
-        <div className="oc-empty">
-          <div className="oc-empty-glyph">♜</div>
-          <div className="oc-empty-title">Search an opening to begin</div>
-          <div className="oc-empty-sub">Type a name above — e.g. "sicilian", "ruy lopez", "king's indian"</div>
+      {activeTab !== 'openings' ? (
+        <div className="oc-insights">
+          {!playerProfile ? (
+            <div className="oc-insights-empty">Import your games to unlock personalized coach insights.</div>
+          ) : insightsLoading ? (
+            <div className="oc-insights-empty">Building your insights from game history…</div>
+          ) : insightsError ? (
+            <div className="oc-insights-empty">{insightsError}</div>
+          ) : (
+            <>
+              {activeTab === 'middlegame' && (
+                <div className="oc-insights-section">
+                  <div className="oc-insights-title">Middlegame themes to improve</div>
+                  <div className="oc-insights-grid">
+                    {weakTypes.map(t => (
+                      <div key={t.position_type} className="oc-insights-card">
+                        <div className="oc-insights-card-top">
+                          <span className="oc-insights-tag">Weak</span>
+                          <span className="oc-insights-win">{t.win_rate}</span>
+                        </div>
+                        <div className="oc-insights-name">{t.position_type}</div>
+                        <div className="oc-insights-desc">{t.description}</div>
+                        <div className="oc-insights-tip">Tip: {POSITION_TIPS[t.position_type] || 'Play solidly, improve your pieces, then look for a pawn break.'}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'errors' && (
+                <div className="oc-insights-section">
+                  <div className="oc-insights-title">Common errors from your games</div>
+                  <div className="oc-insights-grid">
+                    {weakTypes.map(t => (
+                      <div key={`err-${t.position_type}`} className="oc-insights-card">
+                        <div className="oc-insights-card-top">
+                          <span className="oc-insights-tag">Position type</span>
+                          <span className="oc-insights-win">{t.win_rate}</span>
+                        </div>
+                        <div className="oc-insights-name">{t.position_type}</div>
+                        <div className="oc-insights-desc">{t.description}</div>
+                        <div className="oc-insights-tip">Focus: {POSITION_TIPS[t.position_type] || 'Protect your king and stabilize the center.'}</div>
+                      </div>
+                    ))}
+                    {weakOpenings.length === 0 && (
+                      <div className="oc-insights-card oc-insights-card-muted">No weak openings detected yet. Play more games to refine this list.</div>
+                    )}
+                    {weakOpenings.map(o => (
+                      <div key={`op-${o.side}-${o.name}`} className="oc-insights-card">
+                        <div className="oc-insights-card-top">
+                          <span className="oc-insights-tag">Opening · {o.side}</span>
+                          <span className="oc-insights-win">{o.win_rate}%</span>
+                        </div>
+                        <div className="oc-insights-name">{o.name}</div>
+                        <div className="oc-insights-desc">{o.games} games · {o.wins}W {o.draws}D {o.losses}L</div>
+                        <div className="oc-insights-tip">Tip: Review the main pawn breaks and piece placement before memorizing lines.</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'repertoire' && (
+                <div className="oc-insights-section">
+                  <div className="oc-insights-title">Repertoire fixes (lowest win rates)</div>
+                  <div className="oc-insights-grid">
+                    {weakOpenings.length === 0 ? (
+                      <div className="oc-insights-card oc-insights-card-muted">No weak openings detected yet. Play more games to refine this list.</div>
+                    ) : weakOpenings.map(o => (
+                      <div key={`rep-${o.side}-${o.name}`} className="oc-insights-card">
+                        <div className="oc-insights-card-top">
+                          <span className="oc-insights-tag">{o.side}</span>
+                          <span className="oc-insights-win">{o.win_rate}%</span>
+                        </div>
+                        <div className="oc-insights-name">{o.name}</div>
+                        <div className="oc-insights-desc">{o.games} games · {o.wins}W {o.draws}D {o.losses}L</div>
+                        <div className="oc-insights-tip">Fix: Study typical middlegame plans before adding new lines.</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="oc-insights-section">
+                <div className="oc-insights-title">Your strengths to keep using</div>
+                <div className="oc-insights-grid">
+                  {strongTypes.map(t => (
+                    <div key={`str-${t.position_type}`} className="oc-insights-card">
+                      <div className="oc-insights-card-top">
+                        <span className="oc-insights-tag">Strength</span>
+                        <span className="oc-insights-win">{t.win_rate}</span>
+                      </div>
+                      <div className="oc-insights-name">{t.position_type}</div>
+                      <div className="oc-insights-desc">{t.description}</div>
+                      <div className="oc-insights-tip">Keep leaning into this structure in your repertoire.</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ) : !selectedOpening ? (
+        <div className="oc-openings-panel">
+          <div className="oc-openings-header">
+            <div className="oc-openings-title">All openings</div>
+            <div className="oc-openings-sub">Pick any opening to load its board and coaching panel.</div>
+          </div>
+            {groupedOpenings.length === 0 ? (
+              <div className="oc-openings-empty">No openings match this search.</div>
+            ) : groupedOpenings.map(group => (
+              <div key={group.key} className="oc-openings-group">
+                <button
+                  className={`oc-openings-group-title${openingsGroup === group.key ? ' oc-openings-group-open' : ''}`}
+                  onClick={() => setOpeningsGroup(prev => (prev === group.key ? '' : group.key))}
+                >
+                  {group.label}
+                  <span className="oc-openings-group-count">{group.items.length}</span>
+                </button>
+                {(query || openingsGroup === group.key) && (() => {
+                  const familyMap = {};
+                  group.items.forEach(o => {
+                    const family = getFamilyName(o.name);
+                    if (!familyMap[family]) familyMap[family] = [];
+                    familyMap[family].push(o);
+                  });
+                  const families = Object.keys(familyMap).sort((a, b) => a.localeCompare(b));
+                  return families.map(fam => (
+                    <div key={`${group.key}-${fam}`} className="oc-opening-family">
+                      <div className="oc-opening-family-title">{fam}</div>
+                      <div className="oc-openings-grid">
+                        {familyMap[fam].map(o => (
+                          <button key={o.eco + o.name} className="oc-opening-card" onClick={() => selectOpening(o)}>
+                            <div className="oc-opening-top">
+                              <span className="oc-opening-eco">{o.eco}</span>
+                              <span className="oc-opening-name">{o.name}</span>
+                            </div>
+                            <div className="oc-opening-moves">{o.pgn || o.moves}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            ))}
         </div>
       ) : (
         <div className="oc-body" style={{ gridTemplateColumns: isMobile ? '1fr' : (chatOpen ? '430px 1fr' : '1fr 44px') }}>

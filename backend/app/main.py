@@ -230,6 +230,20 @@ async def coach_lines(request: CoachLinesRequest):
     username = (user_preferences or {}).get("username", "").lower()
     type_stats = game_stats_by_type or {}
 
+    def classify_focus(pos_type: str) -> Tuple[Optional[str], Optional[str]]:
+        """Return (category, win_rate_str) for a position type based on user stats."""
+        if not type_stats:
+            return (None, None)
+        s = type_stats.get(pos_type)
+        if not s:
+            return (None, None)
+        wr = float(s.get("win_rate", 0))
+        if wr >= 60:
+            return ("strength", f"{wr:.0f}%")
+        if wr <= 40:
+            return ("weakness", f"{wr:.0f}%")
+        return ("neutral", f"{wr:.0f}%")
+
     if not games_data:
         return {"is_user_turn": is_user_turn, "lines": [], "opponent_moves": []}
 
@@ -297,6 +311,7 @@ async def coach_lines(request: CoachLinesRequest):
                 pass
 
             ts = type_stats.get(future_type, {"win_rate": 0})
+            focus_cat, focus_wr = classify_focus(future_type)
             line_moves = [m for m in [um, best_opp, best_fu] if m]
 
             lines.append({
@@ -305,6 +320,8 @@ async def coach_lines(request: CoachLinesRequest):
                 "win_rate": f"{win_rate}%",
                 "games_played": total,
                 "structure_win_rate": f"{ts.get('win_rate', 0):.0f}%",
+                "focus": focus_cat,
+                "focus_win_rate": focus_wr,
             })
 
         return {"is_user_turn": True, "lines": lines, "opponent_moves": []}

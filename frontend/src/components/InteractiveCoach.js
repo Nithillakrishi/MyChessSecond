@@ -346,6 +346,12 @@ export default function InteractiveCoach({ username, preferences, color, onReset
                               ? `${line.win_rate} wins · ${line.games_played} games`
                               : `${line.structure_win_rate} in this structure`}
                           </span>
+                          {line.focus && (
+                            <span className={`line-focus line-focus-${line.focus}`}>
+                              {line.focus === 'weakness' ? 'Focus: weakness' : line.focus === 'strength' ? 'Focus: strength' : 'Focus: balanced'}
+                              {line.focus_win_rate ? ` · ${line.focus_win_rate}` : ''}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}

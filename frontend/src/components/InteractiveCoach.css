@@ -211,6 +211,15 @@
   letter-spacing: 0.08em;
 }
 .line-stats { font-size: 0.72rem; color: var(--muted); }
+.line-focus {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.line-focus-weakness { color: #FF7A7A; }
+.line-focus-strength { color: var(--green); }
+.line-focus-neutral { color: var(--muted); }
 
 /* ── Opponent moves ── */
 .opp-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }

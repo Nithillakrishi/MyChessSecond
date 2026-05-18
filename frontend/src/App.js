@@ -329,7 +329,7 @@ function AppInner() {
           )}
           {mountedModes.has('coach') && (
             <div style={{ display: activeMode === 'coach' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-              <OpeningCoach username={username} playerProfile={playerProfile} isActive={activeMode === 'coach'} />
+              <OpeningCoach username={username} source={source} playerProfile={playerProfile} isActive={activeMode === 'coach'} />
             </div>
           )}
           {mountedModes.has('explorer') && (
