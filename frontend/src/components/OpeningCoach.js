@@ -9,6 +9,22 @@ import './OpeningCoach.css';
 const API = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+async function getFetchErrorDetail(res) {
+  try {
+    const text = await res.text();
+    if (!text) return '';
+    try {
+      const j = JSON.parse(text);
+      if (j && typeof j.detail === 'string') return j.detail;
+      return text;
+    } catch {
+      return text;
+    }
+  } catch {
+    return '';
+  }
+}
+
 /* ── helpers ─────────────────────────────────────────────── */
 function searchOpenings(query) {
   if (!query || query.trim().length < 2) return [];
@@ -544,7 +560,10 @@ export default function OpeningCoach({ username, source, playerProfile, isActive
           current_fen: chess.fen(),
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const detail = await getFetchErrorDetail(res);
+        throw new Error(detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`);
+      }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let full = '';
@@ -556,8 +575,13 @@ export default function OpeningCoach({ username, source, playerProfile, isActive
       }
       setChatHistory(prev => [...prev, { role: 'assistant', content: full }]);
       setStreamBuffer('');
-    } catch {
-      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I had trouble connecting. Please try again.' }]);
+    } catch (err) {
+      const msg = (err && err.message) ? err.message : '';
+      if (msg) {
+        setChatHistory(prev => [...prev, { role: 'assistant', content: `⚠️ Coach unavailable: ${msg}` }]);
+      } else {
+        setChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I had trouble connecting. Please try again.' }]);
+      }
     } finally { setIsStreaming(false); }
   }
 
@@ -607,14 +631,22 @@ export default function OpeningCoach({ username, source, playerProfile, isActive
           player_profile: playerProfileRef.current,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const detail = await getFetchErrorDetail(res);
+        throw new Error(detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       setPreloaded(data);
       if (data.intro) {
         setChatHistory([{ role: 'assistant', content: data.intro }]);
       }
     } catch (err) {
-      setChatHistory([{ role: 'assistant', content: '⚠️ Could not load opening guide. You can still ask questions manually.' }]);
+      const msg = (err && err.message) ? err.message : '';
+      if (msg) {
+        setChatHistory([{ role: 'assistant', content: `⚠️ Could not load opening guide: ${msg}` }]);
+      } else {
+        setChatHistory([{ role: 'assistant', content: '⚠️ Could not load opening guide. You can still ask questions manually.' }]);
+      }
     } finally {
       setIsStreaming(false);
       setTimeout(() => { justSelectedRef.current = false; }, 1000);
